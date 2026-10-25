@@ -220,8 +220,11 @@
     var skyB = lit ? smooth(0.22, 0.4, m.pi) : smooth(0.3, 1, m.pre);
     if (m.after) skyB = 1;
     doc.style.setProperty('--sky-b', skyB.toFixed(3));
-    var dims = { hero: 0.45, about: 0.58, for: 0.58, emotion: 0.58, why: 0.58, powers: 0.42, none: 0.72, cta: 0.55 };
-    doc.style.setProperty('--sky-dim', String(dims[m.active] != null ? dims[m.active] : 0.3));
+    var dims = { hero: 0, about: 0, for: 0, emotion: 0, why: 0, powers: 0.42, none: 0.72, cta: 0.55 };
+    // 前半（灰色のスタジオ）は明るい配色。ホワイトアウトの奥で暗い配色に切り替わる
+    var light = !m.after && (m.active !== 'powers' || m.pi < 0.24) && m.active !== 'none' && m.active !== 'cta';
+    doc.classList.toggle('theme-light', light);
+    doc.style.setProperty('--sky-dim', light ? '0' : String(dims[m.active] != null ? dims[m.active] : 0.3));
     var frac = window.scrollY / Math.max(1, document.documentElement.scrollHeight - m.vh);
     doc.style.setProperty('--bg-y', (14 - frac * 28).toFixed(1) + 'px');
 

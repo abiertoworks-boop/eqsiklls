@@ -455,7 +455,7 @@ em{font-style:normal;color:var(--accent)}
 /* ---------- 背景の星空（写真2枚。前半＝青い星空、「身につけていく力」から＝星雲） ---------- */
 .sky{position:fixed;inset:-4%;z-index:-3;pointer-events:none;background-size:cover;background-position:center;filter:saturate(.55) brightness(.8);
   transform:translate3d(var(--bg-x,0px),var(--bg-y,0px),0) scale(var(--bg-z,1));will-change:transform,opacity}
-.sky--a{background-image:url(../images/bg-stars.webp);opacity:var(--sky-a,1)}
+.sky--a{opacity:var(--sky-a,1)}
 .sky--b{background-image:url(../images/bg-nebula.webp);opacity:var(--sky-b,0)}
 .sky-dim{position:fixed;inset:0;z-index:-3;pointer-events:none;background:#04060c;opacity:var(--sky-dim,.15);transition:opacity .8s ease}
 .world{z-index:-2}
@@ -657,3 +657,48 @@ em{font-style:normal;color:var(--accent)}
   .feelings li:nth-child(7){left:70%;top:76%}
 }
 @media (prefers-reduced-motion:reduce){.feelings img{animation:none!important}}
+
+/* =========================================================
+   前半（トップ〜なぜ必要なのか）：灰色のスタジオ ＋ 青いスキルのパネル（参考動画：176368）
+   ========================================================= */
+/* 背景：明るい灰色の壁と床。床との境目はやわらかく */
+.sky--a{background-image:
+  radial-gradient(120% 70% at 50% 42%, #c9ccd1 0%, #b4b8be 55%, #9ea3aa 100%);
+  filter:none}
+.sky--a::after{content:"";position:absolute;left:0;right:0;top:74%;bottom:0;
+  background:linear-gradient(180deg,rgba(150,154,161,.6) 0%,#aeb2b8 10%,#bcbfc4 45%,#c6c9cd 100%)}
+.sky--a::before{content:"";position:absolute;left:0;right:0;top:70%;height:8%;
+  background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.18) 45%,rgba(120,124,132,.18) 55%,rgba(120,124,132,0));filter:blur(6px)}
+html.theme-light .vignette{opacity:.25}
+html.theme-light .backdrop{background:#b4b8be}
+.vignette{transition:opacity .8s ease}
+
+/* 文字：前半のセクションは、暗い文字にする */
+[data-orb="hero"],[data-orb="about"],[data-orb="for"],[data-orb="emotion"],[data-orb="why"],
+html.theme-light .site-header,html.theme-light .hbar{
+  --on-dark:#0f1a33;--on-dark-2:#2b3854;--on-dark-3:#56627c;
+  --line:rgba(16,28,60,.14);--line-2:rgba(16,28,60,.24);
+  --accent:#1d55e0;--light-blue:#1d55e0;--light-pale:#1d55e0;
+  color:var(--on-dark-2)}
+[data-orb="hero"] *,[data-orb="about"] *,[data-orb="for"] *,[data-orb="emotion"] *,[data-orb="why"] *{text-shadow:none!important}
+[data-orb="about"] .statement,[data-orb="why"] .why__quote,[data-orb="for"] .wish3 b,[data-orb="why"] .steps__last,
+[data-orb="why"] .beats li,[data-orb="hero"] .hero__lead{color:#0b1530}
+[data-orb="hero"] .hero__note em{color:#1d55e0}
+[data-orb="about"] .flow li:last-child span{color:#1d55e0;text-shadow:none}
+[data-orb="about"] .flow::after{background:#1d55e0;box-shadow:0 0 12px 3px rgba(29,85,224,.45)}
+[data-orb="why"] .beats--steps li:last-child{color:#1d55e0}
+[data-orb="hero"] .btn--ghost,[data-orb="hero"] .btn--ghost:hover{color:#0f1a33;background:rgba(255,255,255,.35);box-shadow:0 0 0 1px rgba(16,28,60,.35) inset}
+[data-orb="hero"] .btn:not(.btn--ghost){color:#fff;background:linear-gradient(180deg,#2f6bff,#1a49c9);box-shadow:0 10px 30px -10px rgba(29,85,224,.7)}
+.hscroll [data-orb="hero"]::after,.hscroll [data-orb="about"]::after,.hscroll [data-orb="for"]::after,
+.hscroll [data-orb="emotion"]::after,.hscroll [data-orb="why"]::after{color:rgba(16,28,60,.06)}
+html.theme-light .site-header.is-scrolled{background:rgba(190,194,200,.72)}
+html.theme-light .site-header::before{background:linear-gradient(rgba(180,184,190,.6),rgba(180,184,190,0))}
+html.theme-light .hbar{background:linear-gradient(rgba(170,174,180,0),rgba(170,174,180,.75))}
+html.theme-light .hline path{stroke:rgba(16,28,60,.2)}
+html.theme-light .hline circle{fill:#c4c7cc;stroke:rgba(16,28,60,.4)}
+html.theme-light .hline circle.is-on{fill:#1d55e0}
+.site-header,.hbar{transition:color .6s ease,background .6s ease}
+
+/* 感情のアイコン：黒い背景をやめ、青いガラスの丸の上に（アイコンは透過PNG） */
+.feelings img{background:radial-gradient(circle at 35% 30%,#4f86e6 0%,#2a5cc4 45%,#1a3d94 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.55) inset,0 10px 26px -8px rgba(26,61,148,.55)!important}

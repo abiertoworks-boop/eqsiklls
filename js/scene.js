@@ -103,8 +103,7 @@
   };
   var texCount = 0;
   function texLoaded(t) { t.minFilter = THREE.LinearFilter; t.generateMipmaps = false; if (++texCount === 2) orbU.uReady.value = 1; }
-  loader.load('images/orb-galaxy.webp', function (t) { orbU.uGal.value = t; texLoaded(t); });
-  loader.load('images/orb-energy.webp', function (t) { orbU.uEn.value = t; texLoaded(t); });
+  // （前半の宇宙の球体は、スキルのパネルの球体に置き換えたので読み込まない）
 
   var orb = new THREE.Group();
   scene.add(orb);
@@ -1001,6 +1000,212 @@
     tipMat.size = 0.24; tipMat.opacity = op; tips.visible = true;
   }
 
+
+  /* =========================================================
+     スキルのパネル（前半：トップ〜「なぜ必要なのか」）
+       ・灰色のスタジオの中を、青いSFパネルがばらばらに舞う（参考動画：176368）
+       ・やがて集まって、パネルでできた球体になる（参考画像：青いパネルの球）
+       ・パネルには EQ Skills で身につける力・学びの名前を書く（学びの場であることを伝える）
+       ・ホワイトアウトの前に、パネルが一斉に手前へ飛び込む
+     ========================================================= */
+  var PANEL_WORDS = [
+    '感情を知る力', '心の動きを知る', '自分と関わる', '思考を整理する', '感情を整理する', '感情を調整する',
+    '他者と関わる', '良好な関係', '行動・成果へ', 'EQコアカード®', 'EQセルフコーチ', 'EQコアカードsession',
+    '公式ナビゲーター', 'インストラクター', 'トレーナー', '感情に気づく', '言葉にする', '違いを理解する',
+    '伝え方を選ぶ', '実践する', '', '', '', ''
+  ];
+  var PCOLS = 4, PROWS = 6, PCW = 256, PCH = 192;
+  var panelCanvas = document.createElement('canvas'); panelCanvas.width = PCOLS * PCW; panelCanvas.height = PROWS * PCH;
+  // テクスチャは「形」だけを持つ：R＝面、G＝縁の線、B＝文字。色はパネルごとに、下の濃さ（薄い・中・濃い）で付ける
+  function drawPanels() {
+    var x = panelCanvas.getContext('2d'); x.clearRect(0, 0, panelCanvas.width, panelCanvas.height);
+    x.fillStyle = '#000'; x.fillRect(0, 0, panelCanvas.width, panelCanvas.height);
+    x.globalCompositeOperation = 'lighter';
+    PANEL_WORDS.forEach(function (w, i) {
+      var ox = (i % PCOLS) * PCW, oy = Math.floor(i / PCOLS) * PCH, pad = 6;
+      x.fillStyle = '#f00'; x.fillRect(ox + pad, oy + pad, PCW - pad * 2, PCH - pad * 2);                 // 面
+      x.strokeStyle = '#0f0'; x.lineWidth = 3; x.strokeRect(ox + pad + 1.5, oy + pad + 1.5, PCW - pad * 2 - 3, PCH - pad * 2 - 3);   // 細い縁
+      x.strokeStyle = 'rgba(0,110,0,1)'; x.lineWidth = 1.5; x.strokeRect(ox + pad + 14, oy + pad + 14, PCW - pad * 2 - 28, PCH - pad * 2 - 28);
+      if (w) {
+        x.fillStyle = '#00f';
+        var fs = w.length > 8 ? 26 : 32;
+        x.font = '600 ' + fs + 'px "Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif';
+        x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillText(w, ox + PCW / 2, oy + PCH / 2 + 2);
+        x.fillStyle = 'rgba(0,0,150,1)'; x.font = '500 13px "Space Grotesk",sans-serif'; x.textAlign = 'left';
+        x.fillText('EQ SKILLS — ' + ('0' + (i + 1)).slice(-2), ox + pad + 22, oy + pad + 28);
+      }
+    });
+    x.globalCompositeOperation = 'source-over';
+  }
+  drawPanels();
+  var panelTex = new THREE.CanvasTexture(panelCanvas); panelTex.anisotropy = 4;
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { drawPanels(); panelTex.needsUpdate = true; });   // 書体が届いたら描き直す
+
+  // パネルの濃さ：薄い3・中ぐらい4・濃い3（参考画像）
+  var TONES = [
+    { c: [0.84, 0.93, 1.00], a: 0.34, t: [0.16, 0.36, 0.70] },   // 薄い：白に近い水色、文字は青
+    { c: [0.55, 0.76, 0.96], a: 0.48, t: [0.97, 0.99, 1.00] },   // 中ぐらい：空色
+    { c: [0.20, 0.47, 0.86], a: 0.64, t: [0.97, 0.99, 1.00] }    // 濃い：青
+  ];
+  var NP = 84;
+  var pGeo = new THREE.PlaneGeometry(1, 0.75);
+  var pCell = new Float32Array(NP * 2), pTone = new Float32Array(NP * 4), pText = new Float32Array(NP * 3), pAlpha = new Float32Array(NP);
+  for (var pi0 = 0; pi0 < NP; pi0++) {
+    var cell = pi0 < 36 ? pi0 % 20 : 20 + Math.floor(rand(pi0 + 60) * 4);   // 文字のあるパネルと、無地のパネル
+    pCell[pi0 * 2] = cell % PCOLS; pCell[pi0 * 2 + 1] = Math.floor(cell / PCOLS);
+    var tr = rand(pi0 + 70), T = TONES[tr < 0.3 ? 0 : tr < 0.7 ? 1 : 2];
+    pTone.set([T.c[0], T.c[1], T.c[2], T.a * (0.85 + 0.3 * rand(pi0 + 75))], pi0 * 4);
+    pText.set(T.t, pi0 * 3);
+    pAlpha[pi0] = 1;
+  }
+  pGeo.setAttribute('aCell', new THREE.InstancedBufferAttribute(pCell, 2));
+  var pGlow = new Float32Array(NP * 2);   // 発光：周期と、ずらし（パネルごとにばらばら）
+  for (var pg = 0; pg < NP; pg++) pGlow.set([3.5 + rand(pg + 80) * 7, rand(pg + 85) * 30], pg * 2);
+  pGeo.setAttribute('aGlow', new THREE.InstancedBufferAttribute(pGlow, 2));
+  pGeo.setAttribute('aTone', new THREE.InstancedBufferAttribute(pTone, 4));
+  pGeo.setAttribute('aText', new THREE.InstancedBufferAttribute(pText, 3));
+  pGeo.setAttribute('aAlpha', new THREE.InstancedBufferAttribute(pAlpha, 1).setUsage(THREE.DynamicDrawUsage));
+  var panelMat = new THREE.ShaderMaterial({
+    uniforms: { uTex: { value: panelTex }, uOpacity: { value: 1 }, uTime: { value: 0 } },
+    vertexShader: [
+      'attribute vec2 aCell;attribute vec4 aTone;attribute vec3 aText;attribute float aAlpha;attribute vec2 aGlow;uniform float uTime;varying float vGlow;',
+      'varying vec2 vUv;varying vec4 vTone;varying vec3 vText;varying float vA;varying float vFace;varying vec2 vLoc;varying vec2 vCell;',
+      'void main(){',
+      ' vCell=aCell;',
+      ' float ph=fract((uTime+aGlow.y)/aGlow.x);',
+      ' vGlow=smoothstep(0.0,0.12,ph)*(1.0-smoothstep(0.12,0.42,ph));',   // ふっと光って、ゆっくり消える
+      ' vUv=(vec2(aCell.x,' + (PROWS - 1) + '.0-aCell.y)+uv)/vec2(' + PCOLS + '.0,' + PROWS + '.0);',
+      ' vLoc=uv; vTone=aTone; vText=aText; vA=aAlpha;',
+      ' vec4 mv=modelViewMatrix*instanceMatrix*vec4(position,1.0);',
+      ' vec3 n=normalize(normalMatrix*mat3(instanceMatrix)*vec3(0.0,0.0,1.0));',
+      ' vFace=abs(dot(n,normalize(-mv.xyz)));',
+      ' gl_Position=projectionMatrix*mv;',
+      '}'
+    ].join('\n'),
+    fragmentShader: [
+      'precision highp float;uniform sampler2D uTex;uniform float uOpacity;',
+      'varying vec2 vUv;varying vec4 vTone;varying vec3 vText;varying float vA;varying float vFace;varying vec2 vLoc;varying vec2 vCell;',
+      'varying float vGlow;',
+      'void main(){',
+      ' vec2 lc=vec2(gl_FrontFacing?vLoc.x:1.0-vLoc.x,vLoc.y);',             // 裏から見ても文字が反転しない
+      ' vec3 m=texture2D(uTex,(vec2(vCell.x,' + (PROWS - 1) + '.0-vCell.y)+lc)/vec2(' + PCOLS + '.0,' + PROWS + '.0)).rgb;',
+      ' if(!gl_FrontFacing) m.b*=0.35;',
+      ' float sheen=0.88+0.24*(1.0-vLoc.y)*(0.6+0.4*vLoc.x);',             // ガラスの面に、ほのかなつや
+      ' vec3 col=vTone.rgb*sheen*(0.82+0.22*vFace);',
+      ' col=mix(col,vec3(1.0),m.g*0.75);',                                   // 縁は白く細く
+      ' col=mix(col,vText,m.b);',
+      ' col=mix(col,vec3(0.86,0.96,1.0),vGlow*0.75*m.r);',                        // 発光：面が白く明るくなり、縁が強く光る
+      ' col+=vec3(0.35,0.7,1.0)*vGlow*m.g;',
+      ' float a=(m.r*mix(vTone.a,0.9,vGlow)+m.g*(0.45+0.55*vGlow)+m.b*0.85)*vA*uOpacity;',
+      ' gl_FragColor=vec4(col,clamp(a,0.0,1.0));',
+      '}'
+    ].join('\n'),
+    transparent: true, depthWrite: false, side: THREE.DoubleSide
+  });
+  var panels = new THREE.InstancedMesh(pGeo, panelMat, NP);
+  panels.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  panels.frustumCulled = false; panels.renderOrder = 2;
+  scene.add(panels);
+
+  // 床に落ちる影（参考動画のように、パネルの下にぼんやり）
+  var TEX_SHADOW = glowTexture([[0, 'rgba(20,24,34,0.32)'], [0.5, 'rgba(20,24,34,0.12)'], [1, 'rgba(20,24,34,0)']]);
+  var shGeo = new THREE.PlaneGeometry(1, 1);
+  var shMat = new THREE.MeshBasicMaterial({ map: TEX_SHADOW, transparent: true, depthWrite: false, opacity: 0.8 });
+  var shadows = new THREE.InstancedMesh(shGeo, shMat, NP);
+  shadows.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  shadows.frustumCulled = false; shadows.renderOrder = 1;
+  scene.add(shadows);
+  // 球体の後ろの、青い淡い光
+  var panelGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_COOL, transparent: true, depthWrite: false, opacity: 0.5 }));
+  panelGlow.renderOrder = 0;
+  scene.add(panelGlow);
+
+  // パネルごとの「球体の上の場所」と「舞っている時の動き」
+  var PD = [];
+  var GA = Math.PI * (3 - Math.sqrt(5));
+  for (var q = 0; q < NP; q++) {
+    var yy = 1 - (q + 0.5) / NP * 2, rr0 = Math.sqrt(1 - yy * yy), th0 = q * GA;
+    var dir = new V3(Math.cos(th0) * rr0, yy, Math.sin(th0) * rr0);
+    dir.add(new V3(rand(q + 300) - 0.5, rand(q + 310) - 0.5, rand(q + 320) - 0.5).multiplyScalar(0.28)).normalize();   // 少し寄せたり離したりして、重なりをつくる
+    var big = rand(q + 330), lay = rand(q + 340);
+    PD.push({
+      dir: dir,
+      depth: lay < 0.12 ? 1.18 + rand(q + 100) * 0.18 : 0.84 + rand(q + 100) * 0.3,        // 何層にも重ねる。少しだけ外へ浮いたパネルも
+      size: 0.16 + Math.pow(big, 2.2) * 0.62,                                              // 小さいパネルが多く、大きいパネルがところどころ
+      asp: 0.65 + rand(q + 350) * 0.9, roll: (rand(q + 120) - 0.5) * 0.12,
+      sx: 2.2 + (rand(q + 130) - 0.5) * 11, sy: -1.8 + rand(q + 140) * 6, sz: -10 + rand(q + 150) * 10,       // 舞う場所
+      ax: new V3(rand(q + 160) - 0.5, rand(q + 170) - 0.5, rand(q + 180) - 0.5).normalize(),
+      tw: (0.5 + rand(q + 190) * 1.3) * (rand(q + 195) > 0.5 ? 1 : -1), bob: rand(q + 200) * 6.28,
+      ssize: 0.55 + rand(q + 210) * 0.7, stagger: rand(q + 220),
+      fly: new V3((rand(q + 230) - 0.5) * 3.2, (rand(q + 240) - 0.5) * 2.2, 0)
+    });
+  }
+  var pM = new THREE.Matrix4(), pQ = new THREE.Quaternion(), pQ2 = new THREE.Quaternion(), pS = new V3(), pP = new V3(), pP2 = new V3();
+  var pN = new V3(), pUp = new V3(), pRight = new V3(), pBasis = new THREE.Matrix4(), pZ = new V3(0, 0, 1);
+  var panelT0 = -1, FLOOR_Y = -3.7;
+  // assemble：0＝ばらばら、1＝球体／rush：0〜1 で手前へ飛び込む
+  function updatePanels(center, R, assemble, rush, op, spinQ) {
+    panels.visible = shadows.visible = op > 0.003;
+    panelGlow.visible = panels.visible;
+    if (!panels.visible) return;
+    if (panelT0 < 0) panelT0 = time;
+    var since = time - panelT0;
+    // 読み込み直後：中央の小さなかたまりから、ふわっと広がる（参考動画の最初）
+    var spread = RM ? 1 : 0.15 + 0.85 * (1 - Math.pow(1 - clamp(since / 3.2, 0, 1), 3));
+    var cam = camera.position;
+    for (var i = 0; i < NP; i++) {
+      var d = PD[i];
+      // 球体の上の位置と向き
+      pN.copy(d.dir).applyQuaternion(spinQ);
+      pP.copy(pN).multiplyScalar(R * d.depth).add(center);
+      pRight.crossVectors(UP, pN); if (pRight.lengthSq() < 1e-4) pRight.set(1, 0, 0); pRight.normalize();
+      pUp.crossVectors(pN, pRight);
+      pBasis.makeBasis(pRight, pUp, pN); pQ.setFromRotationMatrix(pBasis);
+      pQ.multiply(pQ2.setFromAxisAngle(pZ, d.roll));
+      // 舞っている時の位置と向き
+      var tt = RM ? 0 : time;
+      pP2.set(d.sx * spread * CHX2, (d.sy + (CHX2 < 1 ? 3.2 : 0)) * spread + Math.sin(tt * 0.7 + d.bob) * 0.35 + 0.5, d.sz * spread - 1 - (CHX2 < 1 ? 4 : 0));
+      pQ2.setFromAxisAngle(d.ax, tt * d.tw + d.bob);
+      // 集まる時は1枚ずつ時間差で
+      var a = clamp((assemble * 1.35 - d.stagger * 0.35), 0, 1); a = a * a * (3 - 2 * a);
+      pP2.lerp(pP, a);
+      pQ2.slerp(pQ, a);
+      var size = lerp(d.ssize * (CHX2 < 1 ? 0.6 : 1), R * d.size, a);
+      // 飛び込み：パネルが1枚ずつ、画面の中央へ向かって大きくなりながら迫る
+      if (rush > 0) {
+        var f = clamp((rush - d.stagger * 0.45) / 0.55, 0, 1); f = f * f;
+        if (f > 0) {
+          pP.copy(cam).add(d.fly).setZ(cam.z - 0.9);
+          pP2.lerp(pP, f);
+          size *= 1 + f * 2.5;
+        }
+      }
+      pS.set(size * lerp(1, d.asp, a), size / lerp(1, Math.sqrt(d.asp), a), size);
+      pM.compose(pP2, pQ2, pS);
+      panels.setMatrixAt(i, pM);
+      pAlpha[i] = 1;
+      // 床の影
+      var h = Math.max(0, pP2.y - FLOOR_Y);
+      var ss = size * (0.9 + h * 0.12);
+      pQ.setFromAxisAngle(pRight.set(1, 0, 0), -Math.PI / 2);
+      pS.set(ss, ss * 0.6, 1);
+      pP.set(pP2.x + h * 0.15, FLOOR_Y, pP2.z);
+      pM.compose(pP, pQ, pS);
+      shadows.setMatrixAt(i, pM);
+    }
+    panels.instanceMatrix.needsUpdate = true;
+    shadows.instanceMatrix.needsUpdate = true;
+    pGeo.attributes.aAlpha.needsUpdate = true;
+    panelMat.uniforms.uOpacity.value = op;
+    panelMat.uniforms.uTime.value = RM ? 0 : time;
+    shMat.opacity = op * 0.7 * (1 - rush);
+    panelGlow.position.copy(center).setZ(center.z - R * 0.6);
+    panelGlow.scale.setScalar(R * 4.2);
+    panelGlow.material.opacity = op * 0.55 * smooth(0.5, 1, assemble) * (1 - rush);
+  }
+  var CHX2 = 1;
+
   /* =========================================================
      トップ〜「身につけていく力」までの球体の振り付け
        各セクションで球体が止まる位置（POSE）と、セクションの間で通る大きな寄り道（SWOOP）を、
@@ -1221,45 +1426,21 @@
       var rWorld = pxToWorld(S.r * Math.min(W * 1.15, H)) / 2;
       orb.position.set((sx * 2 - 1) * TAN * dist * ASPECT, -(syy * 2 - 1) * TAN * dist, z);
       orb.scale.setScalar(rWorld);
-      var ov = S.ovis * (1 - 0.35 * rush);
-      orb.visible = ov > 0.003;
-
-      // 球体の速さ（移動の大きさ）→ 光の筋の周回半径
-      var spd = dt > 0 ? orb.position.distanceTo(prevOrb) / dt : 0; prevOrb.copy(orb.position);
-      orbVel += (Math.min(spd, 30) - orbVel) * (1 - Math.exp(-dt * 3));
+      var ov = S.ovis;
+      orb.visible = false;   // 前半はスキルのパネルの球体（旧：宇宙の球体と周回する光の筋は使わない）
+      strands.visible = false; tips.visible = false; heroSparks.visible = false;
       if (!RM) {
-        spin.rotation.y += dt * (0.3 + spinBoost * 0.5 + (inPowers ? smooth(0.0, 0.28, pi) * 4 : 0));
-        spin.rotation.x = Math.sin(time * 0.17) * 0.3;
+        spin.rotation.y += dt * (0.18 + spinBoost * 0.35);
+        spin.rotation.x = Math.sin(time * 0.17) * 0.18;
       }
-      orbU.uTime.value = time; orbU.uOpacity.value = ov;
-      orbU.uRot.value += RM ? 0 : dt * (0.12 + spinBoost * 0.3);
-      // 球体＝心。ゆっくり呼吸するように光が満ち引きする（約5秒）
-      var beat = RM ? 0.5 : 0.5 + 0.5 * Math.sin(time * Math.PI * 2 / 5.2);
-      orbU.uBeat.value = beat;
-      halo1.material.opacity = (0.6 + 0.25 * beat) * ov; halo2.material.opacity = (0.18 + 0.12 * beat) * ov;
-      flare.material.opacity = 0.85 * ov * (0.85 + 0.15 * Math.sin(time * 1.7)) * (1 - smooth(0.05, 0.2, inPowers ? pi : 0));
-
-      // 周回する光の筋（残像つき）
-      if (ov > 0.01) {
-        if (!wasVisible) strandsFresh = true;
-        var radius = (1 + Math.min(orbVel * 0.02, 0.25)) * lerp(1, 0.86, smooth(0.45, 0.95, S.r)) + (inPowers ? smooth(0.0, 0.25, pi) * 1.5 : 0);
-        // 飛び込み：光の筋の輪の中心を手前（カメラの方）へ運び、輪も大きく広げる
-        RUSH = 0; for (var sw0 = 0; sw0 < NS; sw0++) STRAND_W[sw0] = 1;
-        stepStrands(RM ? 0 : dt, orb.position, rWorld, radius, Math.min(spinBoost * 0.25, 0.6) + rush * 1.5);
-        if (rush > 0) flyStrands(rush, rWorld); else FLY.forEach(function (F) { F.on = false; });
-        buildStrands(camera.position, rWorld);
-        strands.visible = true;
-        for (var tq = 0; tq < NS; tq++) { var hp = sDefs[tq].hist[TP - 1]; tipPos[tq * 3] = hp.x; tipPos[tq * 3 + 1] = hp.y; tipPos[tq * 3 + 2] = hp.z; }
-        tipGeo.attributes.position.needsUpdate = true;
-        tipMat.size = rWorld * 0.2; tipMat.opacity = ov; tips.visible = true;
-        strands.material.uniforms.uOpacity.value = S.ovis * (mobile ? 0.85 : 1) * (1 + rush * 0.8);
-        strands.material.uniforms.uTime.value = time;
-      } else { strands.visible = false; tips.visible = false; }
-      wasVisible = ov > 0.01;
-      heroSparks.visible = false;   // 全体が一斉にほとばしる動きはやめ、1本ずつのふくらみにした
-      heroSparks.material.uniforms.uB.value = burst;
-      heroSparks.material.uniforms.uOpacity.value = ov;
-      heroSparks.material.uniforms.uPx.value = bufSize.y * 0.006;
+      spin.updateMatrixWorld();
+      // 集まり具合：読み込み後しばらく舞ってから集まる。スクロールを始めたらすぐ集まる。
+      // セクションの間を移動する時は、少しほどけて、着いたらまた球体に戻る
+      var heroAsm = RM ? 1 : Math.max(smooth(2.8, 5.6, time - (panelT0 < 0 ? time : panelT0)), smooth(0, window.innerHeight * 0.35, scrollS));
+      var travel = Math.min(1, Math.abs(SV.x) * 2.2 + Math.abs(SV.z) * 0.05);
+      var asm = heroAsm * (1 - 0.35 * (RM ? 0 : travel));
+      CHX2 = mobile ? 0.45 : 1;
+      updatePanels(orb.position, rWorld, asm, rush, m.after ? 0 : 1, spin.quaternion);
 
       // CTA の白い光の球体
       lights[1].visible = lights[2].visible = false;
@@ -1281,6 +1462,7 @@
       first = true; wasVisible = false;
       white = RM ? 0 : 1 - smooth(0.40, 0.56, pi);
       heroSparks.visible = false;
+      panels.visible = shadows.visible = panelGlow.visible = false;
       orb.visible = false; strands.visible = false; tips.visible = false;
       lights.forEach(function (L) { L.visible = false; });
       lightRig.visible = false; rays.visible = false; flightSparks.visible = false;
