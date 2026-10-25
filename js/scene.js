@@ -1033,7 +1033,7 @@
         x.textAlign = 'center'; x.textBaseline = 'middle';
         x.fillText(w, ox + PCW / 2, oy + PCH / 2 + 2);
         x.fillStyle = 'rgba(0,0,150,1)'; x.font = '500 13px "Space Grotesk",sans-serif'; x.textAlign = 'left';
-        x.fillText('EQ SKILLS — ' + ('0' + (i + 1)).slice(-2), ox + pad + 22, oy + pad + 28);
+        x.fillText('EQ SKILLS', ox + pad + 22, oy + pad + 28);
       }
     });
     x.globalCompositeOperation = 'source-over';
@@ -1205,6 +1205,184 @@
     panelGlow.material.opacity = op * 0.55 * smooth(0.5, 1, assemble) * (1 - rush);
   }
   var CHX2 = 1;
+
+  /* =========================================================
+     後半（「身につけていく力」以降）：暗い空間を横切る光の流れ ＋ 浮遊するスキルのパネル（参考動画：155538）
+       ・画面の中ほどを、細い光の線とデータの粒が左右に流れる（動画の横に走る帯）
+       ・前半の球体と同じ青いパネルが、帯のまわりをゆっくり浮遊する
+       ・スクロールで 01〜08 に来ると、その番号のパネルが前へ出てきて、説明文が表示される
+     ========================================================= */
+  var STREAM = new THREE.Group();
+  scene.add(STREAM);
+  STREAM.visible = false;
+
+  // 光の線：x 方向にのびる線。形（うねり）と、流れる光はシェーダーで
+  var SL = 30, SPL = 140, SX0 = -26, SX1 = 46;
+  var slPos = new Float32Array(SL * (SPL - 1) * 2 * 3), slPar = new Float32Array(SL * (SPL - 1) * 2 * 4), slv = 0;
+  for (var li = 0; li < SL; li++) {
+    var ly = (rand(li + 1500) - 0.5) * (li < 20 ? 0.9 : 2.6), lz = -16 + rand(li + 1510) * 16, ls = rand(li + 1520);
+    for (var lp = 0; lp < SPL - 1; lp++) {
+      for (var e = 0; e < 2; e++) {
+        var lx = SX0 + (SX1 - SX0) * (lp + e) / (SPL - 1);
+        slPos.set([lx, ly, lz], slv * 3);
+        slPar.set([ls, li < 20 ? 1 : 0.45, rand(li + 1530) > 0.5 ? 1 : 0, rand(li + 1540)], slv * 4);
+        slv++;
+      }
+    }
+  }
+  var slGeo = new THREE.BufferGeometry();
+  slGeo.setAttribute('position', new THREE.BufferAttribute(slPos, 3));
+  slGeo.setAttribute('aPar', new THREE.BufferAttribute(slPar, 4));
+  var WAVE = 'vec3 wave(vec3 p,float s,float t){return vec3(p.x,p.y+sin(p.x*0.18+s*12.0+t*0.35)*0.22*(0.4+s)+sin(p.x*0.05+s*5.0)*0.35,p.z+sin(p.x*0.11+s*7.0+t*0.2)*0.4);}';
+  var slMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uOpacity: { value: 1 } },
+    vertexShader: ['attribute vec4 aPar;uniform float uTime;varying float vB;varying vec4 vPar;varying float vX;', WAVE,
+      'void main(){vec3 p=wave(position,aPar.x,uTime);vPar=aPar;vX=p.x;',
+      ' vec4 mv=modelViewMatrix*vec4(p,1.0);vB=clamp(1.0+mv.z/40.0,0.15,1.0);gl_Position=projectionMatrix*mv;}'].join('\n'),
+    fragmentShader: ['precision highp float;uniform float uTime,uOpacity;varying float vB;varying vec4 vPar;varying float vX;',
+      'void main(){',
+      ' float pulse=pow(0.5+0.5*sin(vX*0.6-uTime*(2.0+vPar.w*3.0)+vPar.x*40.0),12.0);',     // 線の上を走る光
+      ' vec3 c=mix(vec3(0.30,0.52,1.0),vec3(0.62,0.42,1.0),vPar.z);',                        // 青と、ほんのり紫
+      ' float a=(0.30+0.9*pulse)*vPar.y*vB*uOpacity;',
+      ' gl_FragColor=vec4(mix(c,vec3(1.0),pulse*0.5)*a,a);}'].join('\n'),
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  var slLines = new THREE.LineSegments(slGeo, slMat);
+  slLines.frustumCulled = false;
+  STREAM.add(slLines);
+
+  // データの粒：線に沿って流れる
+  var SD = 520;
+  var sdPos = new Float32Array(SD * 3), sdPar = new Float32Array(SD * 4);
+  for (var di = 0; di < SD; di++) {
+    var dl = Math.floor(rand(di + 1600) * SL);
+    sdPos.set([SX0 + rand(di + 1610) * (SX1 - SX0), slPos[(dl * (SPL - 1) * 2) * 3 + 1], slPos[(dl * (SPL - 1) * 2) * 3 + 2]], di * 3);
+    sdPar.set([slPar[(dl * (SPL - 1) * 2) * 4], 0.6 + rand(di + 1620) * 2.4, rand(di + 1630), rand(di + 1640) > 0.85 ? 1 : 0], di * 4);
+  }
+  var sdGeo = new THREE.BufferGeometry();
+  sdGeo.setAttribute('position', new THREE.BufferAttribute(sdPos, 3));
+  sdGeo.setAttribute('aPar', new THREE.BufferAttribute(sdPar, 4));
+  var sdMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uOpacity: { value: 1 }, uTex: { value: TEX_DOT }, uPx: { value: 1 } },
+    vertexShader: ['attribute vec4 aPar;uniform float uTime,uPx;varying float vA;varying float vBig;', WAVE,
+      'void main(){vec3 p=position;float span=' + (SX1 - SX0).toFixed(1) + ';',
+      ' p.x=' + SX0.toFixed(1) + '+mod(p.x-' + SX0.toFixed(1) + '+uTime*aPar.y,span);',
+      ' p=wave(p,aPar.x,uTime);vec4 mv=modelViewMatrix*vec4(p,1.0);',
+      ' vBig=aPar.w;gl_PointSize=uPx*(aPar.w>0.5?3.6:1.4)*(0.7+aPar.z)/max(1.0,-mv.z)*12.0;',
+      ' vA=clamp(1.0+mv.z/40.0,0.2,1.0);gl_Position=projectionMatrix*mv;}'].join('\n'),
+    fragmentShader: ['precision highp float;uniform sampler2D uTex;uniform float uOpacity;varying float vA;varying float vBig;',
+      'void main(){float t=texture2D(uTex,gl_PointCoord).a;',
+      ' if(vBig>0.5){float r=length(gl_PointCoord-0.5)*2.0;t=smoothstep(0.62,0.72,r)*(1.0-smoothstep(0.82,0.95,r))+t*0.5;}',   // 大きい粒は、輪の形（動画の丸い目印）
+      ' vec3 c=vec3(0.62,0.80,1.0);float a=t*vA*uOpacity;gl_FragColor=vec4(c*a,a);}'].join('\n'),
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  });
+  var sdPts = new THREE.Points(sdGeo, sdMat);
+  sdPts.frustumCulled = false;
+  STREAM.add(sdPts);
+
+  // 縦に立つ細い光の線（ところどころ）
+  var SVN = 26, svPos = new Float32Array(SVN * 6);
+  for (var vi = 0; vi < SVN; vi++) {
+    var vx = SX0 + rand(vi + 1700) * (SX1 - SX0), vz = -14 + rand(vi + 1710) * 12, vh = 0.6 + rand(vi + 1720) * 3.5;
+    svPos.set([vx, -0.2, vz, vx, -0.2 + vh, vz], vi * 6);
+  }
+  var svGeo = new THREE.BufferGeometry();
+  svGeo.setAttribute('position', new THREE.BufferAttribute(svPos, 3));
+  var svMat = new THREE.LineBasicMaterial({ color: 0x5a7fff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false });
+  STREAM.add(new THREE.LineSegments(svGeo, svMat));
+
+  // 浮遊するパネル：前半の球体と同じパネル。先頭の8枚は 01〜08 のスキル
+  var SKILL_CELL = [0, 1, 2, 3, 5, 6, 7, 8];    // PANEL_WORDS の何番目を、01〜08 に使うか
+  var NF = 46;
+  var fGeo = new THREE.PlaneGeometry(1, 0.75);
+  var fCell = new Float32Array(NF * 2), fTone = new Float32Array(NF * 4), fText = new Float32Array(NF * 3), fGlowA = new Float32Array(NF * 2), fAl = new Float32Array(NF);
+  var FD = [];
+  for (var fi = 0; fi < NF; fi++) {
+    var skill = fi < 8, cl = skill ? SKILL_CELL[fi] : (fi < 26 ? 9 + (fi % 11) : 20 + Math.floor(rand(fi + 1800) * 4));
+    fCell.set([cl % PCOLS, Math.floor(cl / PCOLS)], fi * 2);
+    var tr2 = rand(fi + 1810), TT = skill ? TONES[2] : TONES[tr2 < 0.3 ? 0 : tr2 < 0.7 ? 1 : 2];
+    fTone.set([TT.c[0], TT.c[1], TT.c[2], (skill ? 0.7 : TT.a * 0.8)], fi * 4);
+    fText.set(skill ? [1, 1, 1] : TT.t, fi * 3);
+    fGlowA.set([4 + rand(fi + 1820) * 7, rand(fi + 1830) * 30], fi * 2);
+    fAl[fi] = 1;
+    FD.push({
+      home: skill ? new V3(fi * 2.6 - 1 + (rand(fi + 1840) - 0.5) * 1.5, (fi % 2 ? 1.6 : -1.9) + (rand(fi + 1850) - 0.5), -8 - rand(fi + 1860) * 5)
+                  : new V3(SX0 + 4 + rand(fi + 1840) * (SX1 - SX0 - 8), (rand(fi + 1850) - 0.5) * 6.5, -18 + rand(fi + 1860) * 17),
+      size: skill ? 1.3 : 0.35 + Math.pow(rand(fi + 1870), 2) * 1.4, asp: 0.7 + rand(fi + 1880) * 0.8,
+      ax: new V3(rand(fi + 1890) - 0.5, rand(fi + 1900) - 0.5, rand(fi + 1910) - 0.5).normalize(),
+      tw: (0.15 + rand(fi + 1920) * 0.35) * (rand(fi + 1925) > 0.5 ? 1 : -1), bob: rand(fi + 1930) * 6.28,
+      drift: 0.05 + rand(fi + 1940) * 0.25, act: 0
+    });
+  }
+  fGeo.setAttribute('aCell', new THREE.InstancedBufferAttribute(fCell, 2));
+  fGeo.setAttribute('aTone', new THREE.InstancedBufferAttribute(fTone, 4));
+  fGeo.setAttribute('aText', new THREE.InstancedBufferAttribute(fText, 3));
+  fGeo.setAttribute('aGlow', new THREE.InstancedBufferAttribute(fGlowA, 2));
+  fGeo.setAttribute('aAlpha', new THREE.InstancedBufferAttribute(fAl, 1).setUsage(THREE.DynamicDrawUsage));
+  var floatMat = panelMat.clone();
+  floatMat.uniforms.uTex.value = panelTex;
+  floatMat.blending = THREE.AdditiveBlending;     // 暗い空間では、ガラスが光って見えるように
+  var floaters = new THREE.InstancedMesh(fGeo, floatMat, NF);
+  floaters.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  floaters.frustumCulled = false; floaters.renderOrder = 3;
+  STREAM.add(floaters);
+  // 前に出たパネルの後ろの光
+  var frontGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_COOL, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
+  STREAM.add(frontGlow);
+
+  var fM = new THREE.Matrix4(), fQ = new THREE.Quaternion(), fQ2 = new THREE.Quaternion(), fS = new V3(), fP = new V3(), fP2 = new V3(), fE = new THREE.Euler();
+  function showStream(op, kk, dt, mobile) {
+    STREAM.visible = op > 0.003;
+    if (!STREAM.visible) return;
+    var tt = RM ? 0 : time;
+    var s = Math.max(0, kk + 1);
+    // カメラは、スクロールに合わせて帯に沿って右へ進む
+    camera.position.set(s * 2.6 - 1.5 + (RM ? 0 : Math.sin(time * 0.13) * 0.2), 0.3 + (RM ? 0 : Math.sin(time * 0.1) * 0.12), CAM_Z);
+    camera.rotation.set(-0.03, 0, 0); camera.updateMatrixWorld();
+    slMat.uniforms.uTime.value = sdMat.uniforms.uTime.value = tt;
+    slMat.uniforms.uOpacity.value = sdMat.uniforms.uOpacity.value = op;
+    sdMat.uniforms.uPx.value = bufSize.y * 0.004;
+    svMat.opacity = 0.25 * op;
+    floatMat.uniforms.uOpacity.value = op;
+    floatMat.uniforms.uTime.value = tt;
+    // 前に出る位置：左の舞台（.powers__orb）。カメラから見た位置に置く
+    var a = anchorRect('.powers__orb'), aw = toWorld(a.x, a.y);
+    var DZ = 4.2, scl = (CAM_Z - DZ) / CAM_Z;
+    var frontX = camera.position.x + aw[0] * scl, frontY = camera.position.y + aw[1] * scl;
+    var frontSize = pxToWorld(a.s) * scl * (mobile ? 1.15 : 1.25);
+    var best = 0;
+    for (var i = 0; i < NF; i++) {
+      var d = FD[i];
+      // 浮遊：ゆっくり漂い、回る
+      fP.copy(d.home);
+      fP.x += Math.sin(tt * d.drift + d.bob) * 0.8; fP.y += Math.sin(tt * 0.5 + d.bob) * 0.25;
+      fQ.setFromAxisAngle(d.ax, tt * d.tw + d.bob);
+      var size = d.size;
+      // 01〜08：その番号のパネルが前へ出てくる
+      if (i < 8) {
+        var act = RM ? (Math.round(kk) === i ? 1 : 0) : 1 - smooth(0.32, 0.8, Math.abs(kk - i));
+        if (kk < -0.5) act = 0;
+        d.act = act;
+        if (act > 0) {
+          fP2.set(frontX, frontY, DZ);
+          var e2 = act * act * (3 - 2 * act);
+          fP.lerp(fP2, e2);
+          fE.set(Math.sin(tt * 0.4 + i) * 0.08, -0.22 + Math.sin(tt * 0.3 + i) * 0.06, 0.02); fQ2.setFromEuler(fE);
+          fQ.slerp(fQ2, e2);
+          size = lerp(size, frontSize, e2);
+          if (act > best) best = act;
+        }
+      }
+      fS.set(size * d.asp, size / Math.sqrt(d.asp), size);
+      fM.compose(fP, fQ, fS);
+      floaters.setMatrixAt(i, fM);
+    }
+    floaters.instanceMatrix.needsUpdate = true;
+    frontGlow.position.set(frontX, frontY, DZ - 0.6);
+    frontGlow.scale.setScalar(frontSize * 2.6);
+    frontGlow.material.opacity = 0.55 * best * op;
+  }
+
 
   /* =========================================================
      トップ〜「身につけていく力」までの球体の振り付け
@@ -1454,9 +1632,10 @@
       flightSparks.visible = false;
       rays.visible = false;
       dust.visible = false;
-      // 最後の CTA：絡み合う光の束を、もう一度静かに
       flight.visible = false;
       chaseFresh = true;
+      // 文章を読む区間と最後の CTA：光の流れを、静かに背景に
+      if (m.after) showStream(mode === 'cta' ? 0.75 : 0.45, 8 + Math.min(4, (scrollS - (EQS.docSpan ? EQS.docSpan(document.getElementById('features'))[0] : 0)) / Math.max(1, window.innerWidth) * 1.2), dt, mobile); else STREAM.visible = false;
     } else {
       /* ---------- 「身につけていく力」以降：絡み合いながら右奥へ進む光の束（球体は使わない） ---------- */
       first = true; wasVisible = false;
@@ -1470,8 +1649,8 @@
       camera.position.set(RM ? 0 : Math.sin(time * 0.13) * 0.25, RM ? 0 : Math.sin(time * 0.1) * 0.15, CAM_Z);
       camera.rotation.set(0, 0, 0); camera.updateMatrixWorld();
       var braidOp = (RM ? 1 : smooth(0.3, 0.52, pi)) * (1 - smooth(7.05, 7.4, kk));
-      flight.visible = false;
-      showChase(braidOp, kk, dt, mobile, pi);
+      flight.visible = false; strands.visible = tips.visible = false;
+      showStream(braidOp, kk, dt, mobile);   // 暗い空間の光の流れと、浮遊するパネル（光の球体と追いかける光の筋はやめた）
       dust.visible = false;   // 背景の星空写真があるので、手前の粒は出さない（球体に重なって見えるため）
       bgX = clamp(-Math.max(0, kk + 1) * 4, -40, 0); bgZ = 1 + Math.max(0, kk + 1) * 0.01;
     }
