@@ -1276,12 +1276,12 @@
   // パネルごとの「球体の上の場所」と「舞っている時の動き」
   var PD = [];
   var GA = Math.PI * (3 - Math.sqrt(5));
-  var SPHERE_COVER = 0.18;                                              // 1枚の本体が球面を覆う面積（半径²に対して）。球面÷枚数＝0.15 より少し大きくして、縁を重ねる
+  var SPHERE_COVER = 0.075;                                             // 1枚の本体が球面を覆う面積（半径²に対して）。球面÷枚数＝0.15 の半分にして、パネルの間に余白を残す
   for (var q = 0; q < NP; q++) {
     var fq = (q * 29) % NP;                                             // 球の上の並び順を混ぜて、言葉のパネルが上半分に偏らないように
     var yy = 1 - (fq + 0.5) / NP * 2, rr0 = Math.sqrt(1 - yy * yy), th0 = fq * GA;
     var dir = new V3(Math.cos(th0) * rr0, yy, Math.sin(th0) * rr0);
-    dir.add(new V3(rand(q + 300) - 0.5, rand(q + 310) - 0.5, rand(q + 320) - 0.5).multiplyScalar(0.06)).normalize();   // ほんの少しだけずらして、機械的に見えないように
+    dir.add(new V3(rand(q + 300) - 0.5, rand(q + 310) - 0.5, rand(q + 320) - 0.5).multiplyScalar(0.12)).normalize();   // 少しずらして、余白に粗密をつくる（機械的に見えないように）
     var lay = rand(q + 340), pcl = PSPEC[q].cell, tr = rand(q + 70);
     // 大きさ：本体の形（細長い・幅広い）が違っても、球面を覆う面積がほぼ同じになるようにする（穴やかたまりをつくらない）
     var bodyArea = (PSPEC[q].bw / pcl.w) * PLANE_W * (PSPEC[q].bh / pcl.h) * 0.85 * 0.85;
@@ -1298,8 +1298,8 @@
     panels.add(face);
     PD.push({
       mesh: face, dir: dir,
-      depth: lay < 0.1 ? 1.06 + rand(q + 100) * 0.04 : 0.97 + rand(q + 100) * 0.06,       // ほぼ同じ半径にそろえ、少しだけ浮いた層を重ねる（輪郭は丸いまま）
-      size: Math.sqrt(SPHERE_COVER / bodyArea) * (0.88 + rand(q + 330) * 0.24),
+      depth: lay < 0.15 ? 1.08 + rand(q + 100) * 0.08 : 0.93 + rand(q + 100) * 0.12,       // 半径に少し幅を持たせ、浮いた層も重ねる（奥のパネルが余白から透けて見える）
+      size: Math.sqrt(SPHERE_COVER / bodyArea) * (0.78 + rand(q + 330) * 0.44),
       roll: (rand(q + 120) - 0.5) * 0.08,
       sx: 2.2 + (rand(q + 130) - 0.5) * 11, sy: -1.8 + rand(q + 140) * 6, sz: -10 + rand(q + 150) * 10,       // 舞う場所
       ax: new V3(rand(q + 160) - 0.5, rand(q + 170) - 0.5, rand(q + 180) - 0.5).normalize(),
