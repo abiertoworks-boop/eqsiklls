@@ -1626,7 +1626,10 @@
   function easeOutBack(t) { var c1 = 1.25, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
   var fQ = new THREE.Quaternion(), fQ2 = new THREE.Quaternion(), fP = new V3(), fP2 = new V3(), fE = new THREE.Euler();
   var streamT0 = -1, streamSeen = -1;
-  function showStream(op, kk, dt, mobile) {
+  // Features 以降：背景のパネルが集まって円柱になり、ゆっくり回る。スクロールに合わせて奥へ行ったり手前へ来たりする
+  var cylS = 0, cylSpin = 0, cylC = new V3(), cylP = new V3(), cylQ = new THREE.Quaternion(), cylE = new THREE.Euler();
+  // cyl：0〜1（円柱に集まる具合）、cylZ：円柱の中心の奥行き
+  function showStream(op, kk, dt, mobile, cyl, cylZ) {
     STREAM.visible = op > 0.003;
     if (!STREAM.visible) return;
     var tt = RM ? 0 : time;
@@ -1656,6 +1659,10 @@
     var frontX = camera.position.x + aw[0] * scl, frontY = camera.position.y + aw[1] * scl;
     var frontSize = pxToWorld(bodyPx) * scl / (PLANE_W * SKILL_BODY[0]) * 0.92;         // 右を向くと手前の左端が少し大きく見える分を引く
     var best = 0;
+    cylS = RM || CAPTURE ? (cyl || 0) : cylS + ((cyl || 0) - cylS) * (1 - Math.exp(-dt * 0.9));   // ゆっくり集まり、ゆっくりほどける
+    if (!RM) cylSpin += dt * 0.12;                                                                  // ゆっくり回転（1周 約50秒）
+    var CYL_R = mobile ? 2.4 : 4.6, CYL_H = mobile ? 0.95 : 1.35, CYL_S = mobile ? 0.9 : 1.3;
+    cylC.set(camera.position.x + (mobile ? 0 : 2.4), mobile ? 1.0 : 0.2, cylZ === undefined ? -9 : cylZ);
     for (var i = 0; i < NF; i++) {
       var d = FD[i], U = d.U;
       // 浮遊：右を向いたまま、ゆっくり漂って揺れる
@@ -1694,6 +1701,14 @@
         U.uTxt.value = d.txt; U.uAct.value = clamp(e2, 0, 1);
       } else {
         U.uTxt.value = smooth(0.55, 1, u);
+      }
+      // 円柱：8列×4段。段ごとに半列ずらして、すき間を互い違いに。画面は外を向く
+      if (cylS > 0.001) {
+        var ce = clamp(cylS * 1.4 - rand(i + 1990) * 0.4, 0, 1); ce = ce * ce * (3 - 2 * ce);   // 1枚ずつ時間差で集まる
+        var row = Math.floor(i / 8), th = ((i % 8) + row * 0.5) / 8 * Math.PI * 2 + cylSpin;
+        cylP.set(cylC.x + Math.sin(th) * CYL_R, cylC.y + (row - 1.5) * CYL_H, cylC.z + Math.cos(th) * CYL_R);
+        cylE.set(0, th, 0); cylQ.setFromEuler(cylE);
+        fP.lerp(cylP, ce); fQ.slerp(cylQ, ce); size = lerp(size, CYL_S, ce);
       }
       d.face.position.copy(fP); d.face.quaternion.copy(fQ); d.face.scale.setScalar(size);
       d.refl.position.copy(fP); d.refl.quaternion.copy(fQ); d.refl.scale.setScalar(size);
@@ -1958,7 +1973,13 @@
       flight.visible = false;
       chaseFresh = true;
       // 文章を読む区間と最後の CTA：光の流れを、静かに背景に
-      if (m.after) showStream(mode === 'cta' ? 0.75 : 0.45, 8 + Math.min(4, (scrollS - (EQS.docSpan ? EQS.docSpan(document.getElementById('features'))[0] : 0)) / Math.max(1, window.innerWidth) * 1.2), dt, mobile); else STREAM.visible = false;
+      if (m.after) {
+        // Features からの進み具合（画面いくつ分か）。Features の手前ではマイナス
+        var fStart = EQS.docSpan ? EQS.docSpan(document.getElementById('features'))[0] : 0;
+        var fProg = (scrollS - fStart) / Math.max(1, EQS.viewport ? EQS.viewport() : window.innerWidth);
+        // 番号は 8 より小さくしない（以前は Features の手前で 0〜7 になり、01〜08 の画面が誤って前に出ていた）
+        showStream(mode === 'cta' ? 0.75 : 0.45, 8 + clamp(fProg * 1.2, 0, 4), dt, mobile, smooth(-0.6, 0.2, fProg), -9 + 3.2 * Math.sin(Math.max(0, fProg) * Math.PI));
+      } else STREAM.visible = false;
     } else {
       /* ---------- 「身につけていく力」以降：絡み合いながら右奥へ進む光の束（球体は使わない） ---------- */
       first = true; wasVisible = false;

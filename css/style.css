@@ -325,6 +325,9 @@ em{font-style:normal;color:var(--accent)}
 }
 .js .feature.is-in::after{animation:sweep 2.2s var(--ease-out) .2s both}
 @keyframes sweep{0%{transform:translateX(-100%);opacity:0}20%{opacity:1}100%{transform:translateX(330%);opacity:0}}
+.feature__img{grid-column:1/-1;margin:0 0 26px;max-width:560px;aspect-ratio:16/10;overflow:hidden;border-radius:4px;background:#0a1220;
+  border:1px solid rgba(120,220,255,.28);box-shadow:0 0 26px rgba(60,180,255,.14)}
+.feature__img img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.92) brightness(.9)}
 .feature__num{font-family:var(--font-en);font-weight:300;font-size:clamp(48px,6vw,88px);line-height:.9;color:transparent;-webkit-text-stroke:1px rgba(170,205,255,.5);min-width:1.1em}
 .feature__text{max-width:720px}
 .feature__text p+p{margin-top:.7em}
@@ -564,6 +567,7 @@ em{font-style:normal;color:var(--accent)}
 .hscroll .feature{display:block;width:23vw;padding:0 2.4vw;margin:0!important;border-top:0;border-left:1px solid var(--line)}
 .hscroll .feature:last-child{border-bottom:0;border-right:1px solid var(--line)}
 .hscroll .feature::after{left:-1px;top:0;width:1px;height:30%;background:linear-gradient(180deg,transparent,rgba(170,210,255,.9),transparent)}
+.hscroll .feature__img{max-width:none;margin:0 0 22px}
 .hscroll .feature__num{display:block;font-size:clamp(44px,4.6vw,72px);margin-bottom:24px}
 .hscroll .feature .h-3{font-size:clamp(17px,1.4vw,21px);min-height:3.2em}
 @keyframes sweepV{0%{transform:translateY(-100%);opacity:0}20%{opacity:1}100%{transform:translateY(330%);opacity:0}}
