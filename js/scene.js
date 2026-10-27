@@ -1276,11 +1276,15 @@
   // パネルごとの「球体の上の場所」と「舞っている時の動き」
   var PD = [];
   var GA = Math.PI * (3 - Math.sqrt(5));
+  var SPHERE_COVER = 0.18;                                              // 1枚の本体が球面を覆う面積（半径²に対して）。球面÷枚数＝0.15 より少し大きくして、縁を重ねる
   for (var q = 0; q < NP; q++) {
-    var yy = 1 - (q + 0.5) / NP * 2, rr0 = Math.sqrt(1 - yy * yy), th0 = q * GA;
+    var fq = (q * 29) % NP;                                             // 球の上の並び順を混ぜて、言葉のパネルが上半分に偏らないように
+    var yy = 1 - (fq + 0.5) / NP * 2, rr0 = Math.sqrt(1 - yy * yy), th0 = fq * GA;
     var dir = new V3(Math.cos(th0) * rr0, yy, Math.sin(th0) * rr0);
-    dir.add(new V3(rand(q + 300) - 0.5, rand(q + 310) - 0.5, rand(q + 320) - 0.5).multiplyScalar(0.28)).normalize();   // 少し寄せたり離したりして、重なりをつくる
-    var big = rand(q + 330), lay = rand(q + 340), pcl = PSPEC[q].cell, tr = rand(q + 70);
+    dir.add(new V3(rand(q + 300) - 0.5, rand(q + 310) - 0.5, rand(q + 320) - 0.5).multiplyScalar(0.06)).normalize();   // ほんの少しだけずらして、機械的に見えないように
+    var lay = rand(q + 340), pcl = PSPEC[q].cell, tr = rand(q + 70);
+    // 大きさ：本体の形（細長い・幅広い）が違っても、球面を覆う面積がほぼ同じになるようにする（穴やかたまりをつくらない）
+    var bodyArea = (PSPEC[q].bw / pcl.w) * PLANE_W * (PSPEC[q].bh / pcl.h) * 0.85 * 0.85;
     var rim = new THREE.Mesh(rimGeo(PSPEC[q], PSHAPE[q]), new THREE.ShaderMaterial(Object.assign({ uniforms: { uOpacity: panelU.uOpacity }, vertexShader: PANEL_RIM_VS, fragmentShader: PANEL_RIM_FS }, PANEL_BLEND)));
     var face = new THREE.Mesh(pFaceGeo, new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSt: panelU.uSt, uCt: panelU.uCt, uOpacity: panelU.uOpacity, uTime: panelU.uTime,
@@ -1294,9 +1298,9 @@
     panels.add(face);
     PD.push({
       mesh: face, dir: dir,
-      depth: lay < 0.12 ? 1.18 + rand(q + 100) * 0.18 : 0.84 + rand(q + 100) * 0.3,        // 何層にも重ねる。少しだけ外へ浮いたパネルも
-      size: 0.16 + Math.pow(big, 2.2) * 0.62,                                              // 小さいパネルが多く、大きいパネルがところどころ
-      roll: (rand(q + 120) - 0.5) * 0.12,
+      depth: lay < 0.1 ? 1.06 + rand(q + 100) * 0.04 : 0.97 + rand(q + 100) * 0.06,       // ほぼ同じ半径にそろえ、少しだけ浮いた層を重ねる（輪郭は丸いまま）
+      size: Math.sqrt(SPHERE_COVER / bodyArea) * (0.88 + rand(q + 330) * 0.24),
+      roll: (rand(q + 120) - 0.5) * 0.08,
       sx: 2.2 + (rand(q + 130) - 0.5) * 11, sy: -1.8 + rand(q + 140) * 6, sz: -10 + rand(q + 150) * 10,       // 舞う場所
       ax: new V3(rand(q + 160) - 0.5, rand(q + 170) - 0.5, rand(q + 180) - 0.5).normalize(),
       tw: (0.5 + rand(q + 190) * 1.3) * (rand(q + 195) > 0.5 ? 1 : -1), bob: rand(q + 200) * 6.28,
