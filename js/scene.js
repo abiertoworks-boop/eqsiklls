@@ -1626,10 +1626,52 @@
   function easeOutBack(t) { var c1 = 1.25, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); }
   var fQ = new THREE.Quaternion(), fQ2 = new THREE.Quaternion(), fP = new V3(), fP2 = new V3(), fE = new THREE.Euler();
   var streamT0 = -1, streamSeen = -1;
-  // Features 以降：背景のパネルが集まって円柱になり、ゆっくり回る。スクロールに合わせて奥へ行ったり手前へ来たりする
-  var cylS = 0, cylSpin = 0, cylC = new V3(), cylP = new V3(), cylQ = new THREE.Quaternion(), cylE = new THREE.Euler();
-  // cyl：0〜1（円柱に集まる具合）、cylZ：円柱の中心の奥行き
-  function showStream(op, kk, dt, mobile, cyl, cylZ) {
+  // Features 以降の、背景のパネルの並び方（スクロールで次の並び方へ、1枚ずつ時間差でなめらかに移る）
+  //   0＝漂う  1＝円柱（Features。スクロールで奥へ・手前へ）  2＝1枚の大きなカード（Programs）
+  //   3＝縦と横に動いて交差（Growth）  4＝3枚が拡大して写真の枠になる（Vision）  5＝球体に戻る（最後）
+  var MS = 0, cylSpin = 0, cardSpin = 0, sphSpin = 0;
+  var cylC = new V3(), cardC = new V3(), crossC = new V3(), sphC = new V3(), sphR = 1, cylZ = -9;
+  var lyP = [new V3(), new V3()], lyQ = [new THREE.Quaternion(), new THREE.Quaternion()], lyS = [0, 0], lyV = [1, 1], lyE = new THREE.Euler();
+  var lyN = new V3(), lyR = new V3(), lyU = new V3(), lyB = new THREE.Matrix4();
+  var VIS_IDX = [12, 18, 24];                                           // 写真の枠になる3枚（本体が横長 16:9 に近い形）
+  var visRect = [null, null, null];
+  var SPH_DIR = [];
+  for (var sd0 = 0; sd0 < NF; sd0++) { var sy0 = 1 - (sd0 + 0.5) / NF * 2, sr0 = Math.sqrt(1 - sy0 * sy0), st0 = sd0 * Math.PI * (3 - Math.sqrt(5)); SPH_DIR.push(new V3(Math.cos(st0) * sr0, sy0, Math.sin(st0) * sr0)); }
+  // 並び方 mode での、パネル i の位置・向き・大きさ・明るさを slot に入れる（mode 0 は呼ぶ側で入れる）
+  function layoutAt(mode, i, slot, tt) {
+    var P = lyP[slot], Q = lyQ[slot], th, row;
+    lyV[slot] = 1;
+    if (mode === 1) {                       // 円柱：8列×4段。段ごとに半列ずらす。画面は外を向く
+      row = Math.floor(i / 8); th = ((i % 8) + row * 0.5) / 8 * Math.PI * 2 + cylSpin;
+      P.set(cylC.x + Math.sin(th) * CYL_R, cylC.y + (row - 1.5) * CYL_H, cylC.z + Math.cos(th) * CYL_R);
+      lyE.set(0, th, 0); Q.setFromEuler(lyE); lyS[slot] = CYL_S;
+    } else if (mode === 2) {                // 1枚の大きなカード：4列×8段にすき間なく整列し、カードごとゆっくり回る
+      var cw = CARD_S * PLANE_W * 0.86, ch = CARD_S * 0.74;
+      lyR.set(((i % 4) - 1.5) * cw, (3.5 - Math.floor(i / 4)) * ch, 0);
+      lyE.set(0, cardSpin, 0); Q.setFromEuler(lyE);
+      P.copy(lyR).applyQuaternion(Q).add(cardC); lyS[slot] = CARD_S;
+    } else if (mode === 3 || (mode === 4 && VIS_IDX.indexOf(i) < 0)) {   // 縦と横に動いて交差する（Vision では奥へ下がって暗く）
+      var hor = i % 2 === 0, uu = (tt * (0.022 + rand(i + 2010) * 0.03) + rand(i + 2020)) % 1, lane = rand(i + 2030) - 0.5;
+      P.set(crossC.x + (hor ? (uu - 0.5) * CROSS_W : lane * CROSS_W * 0.75), crossC.y + (hor ? lane * CROSS_H : (uu - 0.5) * CROSS_H), crossC.z + (rand(i + 2040) - 0.5) * 6);
+      lyE.set(0, (rand(i + 2050) - 0.5) * 0.3, 0); Q.setFromEuler(lyE);
+      lyS[slot] = CROSS_S * (0.8 + rand(i + 2060) * 0.5);
+      lyV[slot] = smooth(0, 0.08, uu) * (1 - smooth(0.92, 1, uu));       // 端で消えて、反対側から現れる
+      if (mode === 4) { P.z -= 8; lyV[slot] *= 0.45; }
+    } else if (mode === 4) {                // Vision：写真のすぐ後ろで拡大し、写真の枠になる
+      var r = visRect[VIS_IDX.indexOf(i)];
+      if (r) { P.set(r.x, r.y, r.z); lyS[slot] = r.s; } else { P.copy(crossC); lyS[slot] = 1; }
+      Q.identity(); lyV[slot] = 2.1;
+    } else if (mode === 5) {                // 最後：トップのような、パネルの球体に戻る
+      lyN.copy(SPH_DIR[i]).applyAxisAngle(UP, sphSpin);
+      P.copy(lyN).multiplyScalar(sphR).add(sphC);
+      lyR.crossVectors(UP, lyN); if (lyR.lengthSq() < 1e-4) lyR.set(1, 0, 0); lyR.normalize();
+      lyU.crossVectors(lyN, lyR); lyB.makeBasis(lyR, lyU, lyN); Q.setFromRotationMatrix(lyB);
+      lyS[slot] = sphR * 0.5;
+    }
+  }
+  var CYL_R = 4.6, CYL_H = 1.35, CYL_S = 1.3, CARD_S = 0.8, CROSS_W = 24, CROSS_H = 8, CROSS_S = 1.1;
+  // M：並び方（0〜5、小数は途中）、fProg：Features から何画面ぶん進んだか
+  function showStream(op, kk, dt, mobile, M, fProg) {
     STREAM.visible = op > 0.003;
     if (!STREAM.visible) return;
     var tt = RM ? 0 : time;
@@ -1659,10 +1701,30 @@
     var frontX = camera.position.x + aw[0] * scl, frontY = camera.position.y + aw[1] * scl;
     var frontSize = pxToWorld(bodyPx) * scl / (PLANE_W * SKILL_BODY[0]) * 0.92;         // 右を向くと手前の左端が少し大きく見える分を引く
     var best = 0;
-    cylS = RM || CAPTURE ? (cyl || 0) : cylS + ((cyl || 0) - cylS) * (1 - Math.exp(-dt * 0.9));   // ゆっくり集まり、ゆっくりほどける
-    if (!RM) cylSpin += dt * 0.12;                                                                  // ゆっくり回転（1周 約50秒）
-    var CYL_R = mobile ? 2.4 : 4.6, CYL_H = mobile ? 0.95 : 1.35, CYL_S = mobile ? 0.9 : 1.3;
-    cylC.set(camera.position.x + (mobile ? 0 : 2.4), mobile ? 1.0 : 0.2, cylZ === undefined ? -9 : cylZ);
+    MS = RM || CAPTURE ? (M || 0) : MS + ((M || 0) - MS) * (1 - Math.exp(-dt * 1.6));          // 並び方は、ゆっくり移る
+    if (!RM) { cylSpin += dt * 0.12; cardSpin += dt * 0.25; sphSpin += dt * 0.15; }             // 円柱 1周約50秒／カード 約25秒／球体 約40秒
+    var cx0 = camera.position.x + (mobile ? 0 : 2.4);
+    CYL_R = mobile ? 2.4 : 4.6; CYL_H = mobile ? 0.95 : 1.35; CYL_S = mobile ? 0.9 : 1.3;
+    CARD_S = mobile ? 0.5 : 0.8; CROSS_W = mobile ? 10 : 24; CROSS_H = mobile ? 9 : 8; CROSS_S = mobile ? 0.8 : 1.1;
+    cylZ = -9 + 3.2 * Math.sin(Math.max(0, fProg || 0) * Math.PI);                              // スクロールに合わせて、奥へ・手前へ
+    cylC.set(cx0, mobile ? 1.0 : 0.2, cylZ);
+    cardC.set(cx0, mobile ? 1.0 : 0.2, -9);
+    crossC.set(camera.position.x, 0.2, -10);
+    if (MS > 3.01) {                         // Vision の写真の位置と大きさ（写真の真後ろ、奥行き 0 の面）
+      document.querySelectorAll('.vcard img').forEach(function (img, n) {
+        var r = img.getBoundingClientRect();
+        if (!r.width) { visRect[n] = null; return; }
+        var w0 = toWorld(r.left + r.width / 2, r.top + r.height / 2);
+        visRect[n] = { x: camera.position.x + w0[0], y: camera.position.y + w0[1] + 0.02 * r.height / H * 2 * HH, z: 0, s: pxToWorld(r.width) * 1.04 / (PLANE_W * BODY[0][0]) };
+      });
+    }
+    if (MS > 4.01) {                         // 最後の球体：文字の真後ろ、少し奥に
+      var cr = document.querySelector('.sec--cta .col-center'), rc = cr ? cr.getBoundingClientRect() : null;
+      var sw = rc ? toWorld(rc.left + rc.width / 2, rc.top + rc.height / 2) : [0, 0], sz = -6, ss = (CAM_Z - sz) / CAM_Z;
+      sphC.set(camera.position.x + sw[0] * ss, camera.position.y + sw[1] * ss, sz);
+      sphR = pxToWorld(Math.min(W, H) * (mobile ? 0.36 : 0.44)) * ss;
+    }
+    var ma = Math.min(4, Math.floor(MS)), mf = MS - ma;
     for (var i = 0; i < NF; i++) {
       var d = FD[i], U = d.U;
       // 浮遊：右を向いたまま、ゆっくり漂って揺れる
@@ -1702,17 +1764,18 @@
       } else {
         U.uTxt.value = smooth(0.55, 1, u);
       }
-      // 円柱：8列×4段。段ごとに半列ずらして、すき間を互い違いに。画面は外を向く
-      if (cylS > 0.001) {
-        var ce = clamp(cylS * 1.4 - rand(i + 1990) * 0.4, 0, 1); ce = ce * ce * (3 - 2 * ce);   // 1枚ずつ時間差で集まる
-        var row = Math.floor(i / 8), th = ((i % 8) + row * 0.5) / 8 * Math.PI * 2 + cylSpin;
-        cylP.set(cylC.x + Math.sin(th) * CYL_R, cylC.y + (row - 1.5) * CYL_H, cylC.z + Math.cos(th) * CYL_R);
-        cylE.set(0, th, 0); cylQ.setFromEuler(cylE);
-        fP.lerp(cylP, ce); fQ.slerp(cylQ, ce); size = lerp(size, CYL_S, ce);
+      // Features 以降の並び方：今の並び方 ma と次の並び方 ma+1 の間を、1枚ずつ時間差で移る
+      var vm = 1;
+      if (MS > 0.001) {
+        var ce = clamp(mf * 1.4 - rand(i + 1990) * 0.4, 0, 1); ce = ce * ce * (3 - 2 * ce);
+        if (ma === 0) { lyP[0].copy(fP); lyQ[0].copy(fQ); lyS[0] = size; lyV[0] = 1; } else layoutAt(ma, i, 0, tt);
+        if (ce > 0) layoutAt(ma + 1, i, 1, tt);
+        fP.copy(lyP[0]).lerp(lyP[1], ce > 0 ? ce : 0); fQ.copy(lyQ[0]); if (ce > 0) fQ.slerp(lyQ[1], ce);
+        size = lerp(lyS[0], lyS[1], ce > 0 ? ce : 0); vm = lerp(lyV[0], lyV[1], ce > 0 ? ce : 0);
       }
       d.face.position.copy(fP); d.face.quaternion.copy(fQ); d.face.scale.setScalar(size);
       d.refl.position.copy(fP); d.refl.quaternion.copy(fQ); d.refl.scale.setScalar(size);
-      U.uOpacity.value = op * vis;
+      U.uOpacity.value = Math.min(1, op * vis * vm);
       U.uTime.value = tt;
     }
     frontGlow.position.set(frontX, frontY, DZ - 0.8);
@@ -1886,7 +1949,7 @@
     var vel = Math.abs(sy - lastScroll) / Math.max(dt, 0.001); lastScroll = sy;
     var want = Math.min(vel * 0.0035, 5);
     spinBoost += (want - spinBoost) * (1 - Math.exp(-dt * (want > spinBoost ? 6 : 1.6)));
-    scrollS += (sy - scrollS) * (RM ? 1 : 1 - Math.exp(-dt * 8));
+    scrollS += (sy - scrollS) * (RM || CAPTURE ? 1 : 1 - Math.exp(-dt * 8));   // 撮影用（capture）は、すぐその位置に
 
     // 定期的なほとばしり（5.2秒ごと）
     var ph = ((time + 1.5) % 5.2) / 5.2;
@@ -1978,7 +2041,13 @@
         var fStart = EQS.docSpan ? EQS.docSpan(document.getElementById('features'))[0] : 0;
         var fProg = (scrollS - fStart) / Math.max(1, EQS.viewport ? EQS.viewport() : window.innerWidth);
         // 番号は 8 より小さくしない（以前は Features の手前で 0〜7 になり、01〜08 の画面が誤って前に出ていた）
-        showStream(mode === 'cta' ? 0.75 : 0.45, 8 + clamp(fProg * 1.2, 0, 4), dt, mobile, smooth(-0.6, 0.2, fProg), -9 + 3.2 * Math.sin(Math.max(0, fProg) * Math.PI));
+        // 並び方：画面の中央が各セクションの始まりを越えるごとに、次の並び方へ（Features→円柱、Programs→カード、Growth→交差、Vision→3枚、最後→球体）
+        var vp = EQS.viewport ? EQS.viewport() : window.innerWidth, mid = scrollS + vp * 0.5, Mv = 0;
+        ['features', 'programs', 'growth', 'vision', 'contact'].forEach(function (id) {
+          var el = document.getElementById(id); if (!el) return;
+          var s0 = EQS.docSpan(el)[0]; Mv += smooth(s0 - vp * 0.5, s0 + vp * 0.1, mid);
+        });
+        showStream(mode === 'cta' ? 0.75 : 0.6, 8 + clamp(fProg * 1.2, 0, 4), dt, mobile, Mv, fProg);   // 文字の後ろに暗い層を敷いたので、パネルを少し明るく
       } else STREAM.visible = false;
     } else {
       /* ---------- 「身につけていく力」以降：絡み合いながら右奥へ進む光の束（球体は使わない） ---------- */
