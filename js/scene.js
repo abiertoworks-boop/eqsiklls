@@ -1237,17 +1237,18 @@
     ' vec2 uv=uCell.xy+lc*uCell.zw;',
     ' vec4 s=texture2D(uSt,uv), c=texture2D(uCt,uv);',
     ' if(!gl_FrontFacing) c.r*=0.35;',
-    ' float ph=fract((uTime+uGlow.y)/uGlow.x);',
-    ' float gw=smoothstep(0.0,0.12,ph)*(1.0-smoothstep(0.12,0.42,ph));',                          // ふっと光って、ゆっくり消える
+    ' float cyc=floor((uTime+uGlow.y)/uGlow.x), ph=fract((uTime+uGlow.y)/uGlow.x);',
+    ' float on=step(0.5,fract(sin(cyc*91.7+uGlow.y*13.1)*43758.5453));',                      // 光るかどうかは、毎回ランダムに決める
+    ' float gw=on*smoothstep(0.0,0.08,ph)*(1.0-smoothstep(0.08,0.45,ph));',                    // ふっと光って、ゆっくり消える
     ' float scan=0.9+0.1*sin(lc.y*uCell.w*1800.0+uTime*3.0);',                                  // 走査線
     ' vec3 CY=vec3(0.36,0.93,1.0), WH=vec3(0.92,1.0,1.0);',
-    ' vec3 gc=mix(vec3(0.03,0.15,0.23),vec3(0.07,0.36,0.5),s.g)*scan+CY*gw*0.3;',                 // 深い青緑のガラス
-    ' float ga=min(1.0,s.g*uDen*(1.0+0.25*gw));',
+    ' vec3 gc=mix(vec3(0.03,0.15,0.23),vec3(0.07,0.36,0.5),s.g)*scan+CY*gw*0.75;',                // 深い青緑のガラス（光ると明るい水色に）
+    ' float ga=min(1.0,s.g*uDen*(1.0+0.6*gw));',
     ' vec3 pc=gc*ga; float pa=ga;',
     ' float d=min(1.0,s.b*0.7+c.b*0.9); pc=pc*(1.0-d)+CY*d; pa+=d*(1.0-pa);',                    // 飾りとデータ
-    ' float fr=min(1.0,s.r*(1.0+0.6*gw)); pc=pc*(1.0-fr)+mix(CY,WH,0.3+0.5*gw)*fr; pa+=fr*(1.0-pa);',   // 枠
+    ' float fr=min(1.0,s.r*(1.0+1.2*gw)); pc=pc*(1.0-fr)+mix(CY,WH,0.3+0.7*gw)*fr; pa+=fr*(1.0-pa);',   // 枠
     ' float g=min(1.0,c.r); pc=pc*(1.0-g)+WH*g; pa+=g*(1.0-pa);',                                // 文字
-    ' pc+=CY*pow(1.0-vFace,3.0)*0.3*s.g*pa;',                                                     // 斜めから見ると面が光る
+    ' pc+=CY*pow(1.0-vFace,3.0)*0.3*s.g*pa+CY*gw*0.3*pa;',                                                     // 斜めから見ると面が光る
     ' gl_FragColor=vec4(pc,pa)*uOpacity;',
     '}'
   ].join('\n');
@@ -1285,7 +1286,7 @@
     var face = new THREE.Mesh(pFaceGeo, new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSt: panelU.uSt, uCt: panelU.uCt, uOpacity: panelU.uOpacity, uTime: panelU.uTime,
         uCell: { value: new THREE.Vector4(pcl.x / pAtlasW, 1 - (pcl.y + pcl.h) / pAtlasH, pcl.w / pAtlasW, pcl.h / pAtlasH) },
-        uGlow: { value: new THREE.Vector2(3.5 + rand(q + 80) * 7, rand(q + 85) * 30) },          // 発光：周期と、ずらし（パネルごとにばらばら）
+        uGlow: { value: new THREE.Vector2(2.2 + rand(q + 80) * 3.6, rand(q + 85) * 30) },          // 発光：周期と、ずらし（パネルごとにばらばら）
         uDen: { value: PDEN[tr < 0.3 ? 0 : tr < 0.7 ? 1 : 2] * (0.9 + 0.2 * rand(q + 75)) } },
       vertexShader: PANEL_VS, fragmentShader: PANEL_FS }, PANEL_BLEND)));
     face.add(rim);                                                       // 厚みの壁は先に作る（同じ奥行きの時に、面より先に描かれる）
@@ -1302,7 +1303,7 @@
       tw: (0.5 + rand(q + 190) * 1.3) * (rand(q + 195) > 0.5 ? 1 : -1), bob: rand(q + 200) * 6.28,
       ssize: 0.55 + rand(q + 210) * 0.7, stagger: rand(q + 220),
       fly: new V3((rand(q + 230) - 0.5) * 3.2, (rand(q + 240) - 0.5) * 2.2, 0),
-      follow: 1.7 + rand(q + 250) * 2.6,                                                   // 目標に追いつく速さ（ばらばらにして、流れをつくる）
+      follow: 3.4 + rand(q + 250) * 3.2,                                                   // 目標に追いつく速さ（ばらばらにして、流れをつくる）
       cp: new V3(), cq: new THREE.Quaternion(), cs: 0
     });
   }
@@ -1562,6 +1563,9 @@
     ' col+=mix(CY,WH,0.4)*s.r*(1.05+0.45*uAct);',
     ' col+=WH*gly*1.3;',
     ' col+=CY*pow(1.0-vFace,3.0)*0.25*(s.g+s.r);',                                               // 斜めから見ると面が光る
+    ' float gp=2.6+uSeed*3.4, gcy=floor((uTime+uSeed*23.0)/gp), gph=fract((uTime+uSeed*23.0)/gp);',
+    ' float gw=step(0.55,hash(vec2(gcy,uSeed*31.0)))*smoothstep(0.0,0.08,gph)*(1.0-smoothstep(0.08,0.45,gph));',   // ランダムに、ふっと発光
+    ' col+=mix(CY,WH,0.5)*gw*(s.g*0.55+s.r*0.8);',
     ' col*=shown*boot*flick;',
     ' col+=WH*edge*1.1;',
     ' col*=mix(vec3(0.6,0.8,0.95),vec3(1.0),vDepth)*vDepth;',                                    // 遠くは暗く沈む
@@ -1615,41 +1619,6 @@
     });
   }
 
-  // 前に出た画面の後ろで回る、目盛りの付いた多重のリング（1枚の絵に4つの輪を描き、少しずつ奥にずらして重ねる）
-  var RG = 512, ringCanvas = document.createElement('canvas'); ringCanvas.width = ringCanvas.height = RG * 2;
-  (function () {
-    var x = ringCanvas.getContext('2d'); x.fillStyle = '#000'; x.fillRect(0, 0, RG * 2, RG * 2);
-    x.strokeStyle = x.fillStyle = '#fff'; x.shadowColor = '#fff';
-    function arc(cx, cy, r, a0, a1, w) { x.lineWidth = w; x.beginPath(); x.arc(cx, cy, r, a0, a1); x.stroke(); }
-    var c = RG / 2, t, a;
-    // 1：外側の細い輪と、細かな目盛り
-    x.shadowBlur = 6; arc(c, c, 238, 0, Math.PI * 2, 2.5);
-    for (t = 0; t < 180; t++) { a = t / 180 * Math.PI * 2; var ln = t % 15 === 0 ? 20 : t % 5 === 0 ? 12 : 6; x.lineWidth = t % 15 === 0 ? 3 : 1.5; x.beginPath(); x.moveTo(c + Math.cos(a) * 232, c + Math.sin(a) * 232); x.lineTo(c + Math.cos(a) * (232 - ln), c + Math.sin(a) * (232 - ln)); x.stroke(); }
-    // 2：太い弧のかたまり
-    var o = RG + c;
-    [[0.0, 0.62], [0.7, 0.95], [1.05, 1.9], [2.05, 2.2], [2.35, 3.4], [3.55, 3.7], [3.85, 4.9], [5.05, 5.9]].forEach(function (s2, n) { arc(o, c, 200, s2[0], s2[1], n % 2 ? 10 : 22); });
-    arc(o, c, 178, 0, Math.PI * 2, 2);
-    // 3：点線の輪と、小さな三角
-    x.setLineDash([16, 10]); arc(c, o, 160, 0, Math.PI * 2, 7); x.setLineDash([]);
-    for (t = 0; t < 4; t++) { a = t * Math.PI / 2 + 0.3; x.beginPath(); x.moveTo(c + Math.cos(a) * 182, o + Math.sin(a) * 182); x.lineTo(c + Math.cos(a + 0.05) * 198, o + Math.sin(a + 0.05) * 198); x.lineTo(c + Math.cos(a - 0.05) * 198, o + Math.sin(a - 0.05) * 198); x.closePath(); x.fill(); }
-    arc(c, o, 140, 0.4, 2.2, 3); arc(c, o, 140, 3.4, 5.6, 3);
-    // 4：内側のブロックの輪と、中心の小さな輪
-    for (t = 0; t < 28; t++) { a = t / 28 * Math.PI * 2; arc(o, o, 112, a + 0.03, a + Math.PI * 2 / 28 - 0.03, t % 7 === 0 ? 3 : 14); }
-    arc(o, o, 132, -0.6, 3.6, 4); arc(o, o, 82, 0, Math.PI * 2, 2.5); arc(o, o, 46, 1.2, 5.4, 6);
-  })();
-  var ringTex = new THREE.CanvasTexture(ringCanvas);
-  var RING_FS = 'precision highp float;uniform sampler2D uTex;uniform vec2 uOff;uniform float uOpacity;varying vec2 vUv;void main(){float t=texture2D(uTex,uOff+vUv*0.5).r;vec3 col=mix(vec3(0.2,0.86,1.0),vec3(0.8,1.0,1.0),t*t*0.35)*t*uOpacity;float oa=clamp(max(col.r,max(col.g,col.b)),0.0,1.0);gl_FragColor=vec4(col/max(oa,0.001),oa);}';
-  var ringG = new THREE.Group(), RINGS = [];
-  [[0, 0.5, 0, 0.05], [0.5, 0.5, -0.1, -0.11], [0, 0, -0.2, 0.17], [0.5, 0, -0.32, -0.26]].forEach(function (r) {
-    var m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShaderMaterial({
-      uniforms: { uTex: { value: ringTex }, uOff: { value: new THREE.Vector2(r[0], r[1]) }, uOpacity: { value: 0 } },
-      vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
-      fragmentShader: RING_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending
-    }));
-    m.position.z = r[2]; m.userData.spin = r[3]; m.renderOrder = 2; m.frustumCulled = false;
-    ringG.add(m); RINGS.push(m);
-  });
-  STREAM.add(ringG);
   // 前に出たスクリーンの後ろの光
   var frontGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX_COOL, color: 0x7fe8ff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
   STREAM.add(frontGlow);
@@ -1731,14 +1700,6 @@
       U.uOpacity.value = op * vis;
       U.uTime.value = tt;
     }
-    // 後ろのリング：前の画面と同じく右を向き、それぞれの輪が違う速さで回る
-    ringG.visible = best > 0.01;
-    if (ringG.visible) {
-      ringG.position.set(frontX - frontSize * 0.05, frontY, DZ - 0.9);
-      ringG.rotation.set(0.06, 0.34, 0);
-      ringG.scale.setScalar(frontSize * 1.05 * (0.7 + 0.3 * best));
-      RINGS.forEach(function (m, n) { m.rotation.z += (RM ? 0 : dt * m.userData.spin * (1 + (1 - best) * 4)); m.material.uniforms.uOpacity.value = op * best * (n === 1 ? 0.3 : 0.22); });
-    }
     frontGlow.position.set(frontX, frontY, DZ - 0.8);
     frontGlow.scale.setScalar(frontSize * 2.4);
     frontGlow.material.opacity = 0.35 * best * op;
@@ -1755,7 +1716,7 @@
   // 流れ：トップ → 定義で手前にアップ → こんな方へで左へ回り込みながら縮小 → 感情で奥へ遠ざかる
   //       → なぜで左手前へ大きく → さらに進むと手前に迫って画面いっぱい（ホワイトアウト）
   var POSE_PC = {
-    hero:    [0.72, 0.50, 0.0, 0.30, 1],
+    hero:    [0.72, 0.50, 0.0, 0.50, 1],     // 「なぜ」で手前に寄った時と同じくらいの見かけの大きさ（画面の高さの約55%）
     about:   ['R', 0.50, 0.0, 0.9, 1],     // 手前に大きくアップ。右の枠外に1/3はみ出し、2/3が見える
     for:     [0.22, 0.50, -3.2, 0.30, 1],    // 左へ回り込んで縮小
     emotion: [0.80, 0.24, -14.0, 0.30, 0.9], // 奥へ縮小（見出しを避けて右上の奥）
@@ -1948,7 +1909,7 @@
       var rate = RM || first || CAPTURE ? 1 : 1 - Math.exp(-dt * 4.2);
       for (key in S) {
         if (SPRING[key] && rate < 1) {
-          var kS = 5.0, cS = 2 * Math.sqrt(kS);
+          var kS = 12.0, cS = 2 * Math.sqrt(kS);   // セクション間の移動を速めに（行き過ぎない強さのばね）
           SV[key] += ((T[key] - S[key]) * kS - SV[key] * cS) * dt;
           S[key] += SV[key] * dt;
         } else { S[key] += (T[key] - S[key]) * rate; SV[key] = 0; }
