@@ -739,7 +739,7 @@ html.theme-light .hline circle.is-on{fill:#1d55e0}
   position:relative;z-index:0}
 .feature__text::before,.program::before,.programs__foot::before,.growth__col::before,.sec--growth .lead::before,.sec--vision .col-center::before,.sec--cta .col-center::before{
   content:"";position:absolute;inset:-16px -20px;z-index:-1;border-radius:10px;pointer-events:none;
-  background:rgba(4,7,14,.62);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 0 40px 10px rgba(4,7,14,.45)}
+  background:rgba(4,7,14,.3);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);box-shadow:0 0 40px 12px rgba(4,7,14,.22)}   /* 少し暗くする程度。後ろのパネルが透けて見える */
 .program--main::before{inset:-6px -20px}
 
 /* 文字の形に切り抜いたグラデーションの見出しは、影が透けて灰色になるので、影は形の外側に付ける */
@@ -777,6 +777,23 @@ html.theme-light .hline circle.is-on{fill:#1d55e0}
 
 /* Vision：3枚のパネル（人生・組織・社会）。3Dのパネルが後ろで拡大して、写真の枠になる */
 .vision__cards{display:grid;gap:44px;margin:56px auto 0;max-width:560px;list-style:none;padding:0}
+/* 縦に、左右へばらばらにずらして並べる */
+.vcard:nth-child(1){width:84%;margin-left:0}
+.vcard:nth-child(2){width:76%;margin-left:24%}
+.vcard:nth-child(3){width:80%;margin-left:8%}
+/* 写真がパネルから浮き上がり、空中でゆっくり漂う（下に光の影、パネルから写真へ光が昇る） */
+.vcard__frame{position:relative}
+.vcard__frame::before{content:"";position:absolute;left:8%;right:8%;bottom:-6px;height:70%;z-index:-1;pointer-events:none;
+  background:linear-gradient(0deg,rgba(90,220,255,.32),rgba(90,220,255,0));filter:blur(6px);opacity:.8;animation:vbeam 6s ease-in-out infinite}
+.vcard__frame::after{content:"";position:absolute;left:10%;right:10%;bottom:-14px;height:18px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(80,210,255,.55),rgba(80,210,255,0) 70%);animation:vshadow 6s ease-in-out infinite}
+.vcard img{animation:vfloat 6s ease-in-out infinite;will-change:transform}
+.vcard:nth-child(2) img,.vcard:nth-child(2) .vcard__frame::before,.vcard:nth-child(2) .vcard__frame::after{animation-delay:-2s}
+.vcard:nth-child(3) img,.vcard:nth-child(3) .vcard__frame::before,.vcard:nth-child(3) .vcard__frame::after{animation-delay:-4s}
+@keyframes vfloat{0%,100%{transform:translate3d(0,-10px,0) scale(.95)}50%{transform:translate3d(0,-22px,0) scale(.95)}}
+@keyframes vshadow{0%,100%{opacity:.9;transform:scaleX(1)}50%{opacity:.5;transform:scaleX(.82)}}
+@keyframes vbeam{0%,100%{opacity:.75}50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.vcard img,.vcard__frame::before,.vcard__frame::after{animation:none}.vcard img{transform:translate3d(0,-12px,0) scale(.95)}}
 .vcard figure{margin:0;position:relative}
 .vcard img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:3px;
   clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px));
@@ -790,5 +807,12 @@ html.theme-light .hline circle.is-on{fill:#1d55e0}
 .hscroll .sec--vision{width:auto}
 .hscroll .sec--vision>.container{display:flex;align-items:center;gap:0 6vw;width:auto;padding-right:8vw}
 .hscroll .sec--vision .col-center{flex:0 0 auto;width:min(760px,52vw)}
-.hscroll .vision__cards{flex:0 0 auto;display:flex;gap:3vw;margin:0;max-width:none}
-.hscroll .vcard{width:24vw}
+.hscroll .vision__cards{flex:0 0 auto;display:flex;flex-direction:column;gap:2.4vh;margin:0;max-width:none;width:34vw;padding-top:4vh}
+.hscroll .vcard:nth-child(1){width:min(19vw,30vh);margin-left:1vw}
+.hscroll .vcard:nth-child(2){width:min(17vw,27vh);margin-left:15vw}
+.hscroll .vcard:nth-child(3){width:min(20vw,31vh);margin-left:5vw}
+.hscroll .vcard figcaption{margin-top:20px;font-size:clamp(17px,1.4vw,22px)}
+
+/* 「EQ Skillsの講座・体験会を見る」ボタン：ドロップシャドウ（下の光の影・文字の影）を付けない */
+.btn.js-course:not(.btn--sm),.btn.js-course:not(.btn--sm):hover,[data-orb="hero"] .btn.js-course:not(.btn--ghost){box-shadow:0 0 0 1px rgba(255,255,255,.4) inset;text-shadow:none}
+.program__more{margin-top:22px}

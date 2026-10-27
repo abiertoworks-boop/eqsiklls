@@ -1005,9 +1005,8 @@
      ホログラムの画面の部品（前半のパネルと後半のスクリーンで共通）
        ・形：角の切り落とし（6通り）×上のタブ（4通り）×下のタブ（3通り）×横の切れ込み（3通り）＝216通り
        ・絵は2枚：枠とガラス（R＝枠の線、G＝ガラスの面、B＝飾り）／文字とデータ（R＝文字、G＝文字のブロック、B＝グラフ）
-       ・枠の厚み：形のふちに沿って、奥へ向かう壁をつくる
      ========================================================= */
-  var PLANE_W = 4 / 3, RIM_D = 0.045;                                  // 画面の板の横幅（高さ1に対して）と、枠の厚み
+  var PLANE_W = 4 / 3;                                                 // 画面の板の横幅（高さ1に対して）
   var CORNERS = [[0, 1, 0, 1], [1, 0, 1, 0], [1, 1, 1, 1], [2, 0, 1, 0], [0, 2, 0, 2], [2, 2, 0, 0]];
   var BODY = [[0.86, 0.64], [0.6, 0.8], [0.9, 0.5], [0.72, 0.72], [0.5, 0.82], [0.84, 0.58]];
   // c＝絵の中のマス、bd＝本体の大きさ（マスに対する割合）、kc＝形の番号（0〜215）、k＝線や飾りの大きさ、big＝大きく見せる画面
@@ -1152,25 +1151,6 @@
     var rib = i % 2 ? R + 5 * k : L - 13 * k;
     for (var rb = 0; rb < 5; rb++) { x.fillStyle = B_(0.6); x.fillRect(rib, T + bh * 0.3 + rb * 8 * k, 8 * k, 2.4 * k); }
   }
-  function rimGeo(s, P) {
-    var c = s.cell, pos = [], nor = [], av = [], idx = [];
-    function lx(px) { return ((px - c.x) / c.w - 0.5) * PLANE_W; }
-    function ly(py) { return 0.5 - (py - c.y) / c.h; }
-    for (var n = 0; n < P.length; n++) {
-      var a = P[n], b = P[(n + 1) % P.length], ax = lx(a[0]), ay = ly(a[1]), bx = lx(b[0]), by = ly(b[1]);
-      var dx = bx - ax, dy = by - ay, ln = Math.sqrt(dx * dx + dy * dy) || 1, v0 = pos.length / 3;
-      pos.push(ax, ay, 0, bx, by, 0, bx, by, -RIM_D, ax, ay, -RIM_D);
-      for (var q = 0; q < 4; q++) nor.push(dy / ln, -dx / ln, 0);
-      av.push(0, 0, 1, 1);
-      idx.push(v0, v0 + 1, v0 + 2, v0, v0 + 2, v0 + 3);
-    }
-    var g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    g.setAttribute('aV', new THREE.Float32BufferAttribute(av, 1));
-    g.setIndex(idx);
-    return g;
-  }
   function atlasTex(c) { var t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.minFilter = THREE.LinearMipmapLinearFilter; return t; }
 
   /* =========================================================
@@ -1252,8 +1232,6 @@
     ' gl_FragColor=vec4(pc,pa)*uOpacity;',
     '}'
   ].join('\n');
-  var PANEL_RIM_VS = 'attribute float aV;varying float vV;varying float vFace;void main(){vV=aV;vec4 mv=modelViewMatrix*vec4(position,1.0);vFace=abs(dot(normalize(normalMatrix*normal),normalize(-mv.xyz)));gl_Position=projectionMatrix*mv;}';
-  var PANEL_RIM_FS = 'precision highp float;uniform float uOpacity;varying float vV;varying float vFace;void main(){float e=exp(-pow(vV*6.0,2.0))*0.8+exp(-pow((1.0-vV)*6.0,2.0))*0.6;float a=min(1.0,(0.4+e)*(0.55+0.45*vFace));vec3 c=mix(vec3(0.05,0.3,0.42),vec3(0.45,0.95,1.0),e);gl_FragColor=vec4(c*a,a)*uOpacity;}';
   var PANEL_BLEND = { transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor };
   var panelU = { uSt: { value: pStTex }, uCt: { value: pCtTex }, uOpacity: { value: 1 }, uTime: { value: 0 } };   // すべてのパネルで共通（値を1回変えれば全部に効く）
   var pFaceGeo = new THREE.PlaneGeometry(PLANE_W, 1);
@@ -1282,16 +1260,14 @@
     var dir = new V3(Math.cos(th0) * rr0, yy, Math.sin(th0) * rr0);
     dir.add(new V3(rand(q + 300) - 0.5, rand(q + 310) - 0.5, rand(q + 320) - 0.5).multiplyScalar(0.28)).normalize();   // 少し寄せたり離したりして、重なりをつくる
     var big = rand(q + 330), lay = rand(q + 340), pcl = PSPEC[q].cell, tr = rand(q + 70);
-    var rim = new THREE.Mesh(rimGeo(PSPEC[q], PSHAPE[q]), new THREE.ShaderMaterial(Object.assign({ uniforms: { uOpacity: panelU.uOpacity }, vertexShader: PANEL_RIM_VS, fragmentShader: PANEL_RIM_FS }, PANEL_BLEND)));
     var face = new THREE.Mesh(pFaceGeo, new THREE.ShaderMaterial(Object.assign({
       uniforms: { uSt: panelU.uSt, uCt: panelU.uCt, uOpacity: panelU.uOpacity, uTime: panelU.uTime,
         uCell: { value: new THREE.Vector4(pcl.x / pAtlasW, 1 - (pcl.y + pcl.h) / pAtlasH, pcl.w / pAtlasW, pcl.h / pAtlasH) },
         uGlow: { value: new THREE.Vector2(2.2 + rand(q + 80) * 3.6, rand(q + 85) * 30) },          // 発光：周期と、ずらし（パネルごとにばらばら）
         uDen: { value: PDEN[tr < 0.3 ? 0 : tr < 0.7 ? 1 : 2] * (0.9 + 0.2 * rand(q + 75)) } },
       vertexShader: PANEL_VS, fragmentShader: PANEL_FS }, PANEL_BLEND)));
-    face.add(rim);                                                       // 厚みの壁は先に作る（同じ奥行きの時に、面より先に描かれる）
-    face.renderOrder = rim.renderOrder = 2;
-    face.frustumCulled = rim.frustumCulled = false;
+    face.renderOrder = 2;
+    face.frustumCulled = false;
     panels.add(face);
     PD.push({
       mesh: face, dir: dir,
@@ -1458,7 +1434,7 @@
 
   // 浮遊するスクリーン：SF映画（アイアンマンのJARVIS・スタートレック）や参考動画「SF風立体ディスプレイ」のような、シアンに光る立体のホログラム画面
   //  ・形は長方形ではなく、角の切り落とし・上下のタブ・横の切れ込みを組み合わせた未来的な形。32枚すべて形も中身も違う
-  //  ・枠には厚み（側面の壁）がある。画面はすべて右を向く
+  //  ・画面はすべて右を向く
   //  ・奥からふわっと飛んできて、下から走る光で映し出される
   //  ・先頭の8枚は 01〜08 のスキル。前に出て大きくなった時にだけ、ブロックが走ってから文字に変わるように文字が現れる
   //  ・前に出た画面の後ろでは、目盛りの付いた多重のリングが回る（参考動画の中央のリング）
@@ -1574,24 +1550,6 @@
     ' float oa=clamp(max(col.r,max(col.g,col.b)),0.0,1.0);gl_FragColor=vec4(col/max(oa,0.001),oa);',   // 背景の写真を黒く塗らないよう、明るさに応じたアルファで足す
     '}'
   ].join('\n');
-  var RIM_VS = [
-    'attribute float aV;varying float vV;varying float vFace;varying float vDepth;',
-    'void main(){vV=aV;vec4 mv=modelViewMatrix*vec4(position,1.0);',
-    ' vFace=abs(dot(normalize(normalMatrix*normal),normalize(-mv.xyz)));',
-    ' vDepth=clamp(1.0-(-mv.z-10.0)/42.0,0.3,1.0);',
-    ' gl_Position=projectionMatrix*mv;}'
-  ].join('\n');
-  var RIM_FS = [
-    'precision highp float;uniform float uOpacity,uBoot,uAct;varying float vV;varying float vFace;varying float vDepth;',
-    'void main(){',
-    ' float e=exp(-pow(vV*6.0,2.0))*0.9+exp(-pow((1.0-vV)*6.0,2.0))*0.7;',                      // 表と裏の縁が光り、その間は透ける
-    ' float a=(0.2+e)*(0.45+0.55*vFace)*(0.8+0.4*uAct)*smoothstep(0.5,1.0,uBoot);',
-    ' vec3 col=mix(vec3(0.2,0.85,1.0),vec3(0.8,1.0,1.0),e*0.5)*a*vDepth*uOpacity;',
-    ' float oa=clamp(max(col.r,max(col.g,col.b)),0.0,1.0);gl_FragColor=vec4(col/max(oa,0.001),oa);',
-    '}'
-  ].join('\n');
-  // 枠の厚み：画面の形のふちに沿って、奥へ向かう壁をつくる
-  function rimGeometry(i) { return rimGeo(SPEC[i], SHAPE[i]); }
   var faceGeo = new THREE.PlaneGeometry(PLANE_W, 1);
   var FD = [];
   for (var fi = 0; fi < NF; fi++) {
@@ -1602,10 +1560,8 @@
     };
     var face = new THREE.Mesh(faceGeo, new THREE.ShaderMaterial({ uniforms: U, vertexShader: HOLO_VS, fragmentShader: HOLO_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
     var refl = new THREE.Mesh(faceGeo, new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, { uRefl: { value: 1 } }), vertexShader: HOLO_VS, fragmentShader: HOLO_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
-    var rim = new THREE.Mesh(rimGeometry(fi), new THREE.ShaderMaterial({ uniforms: { uOpacity: U.uOpacity, uBoot: U.uBoot, uAct: U.uAct }, vertexShader: RIM_VS, fragmentShader: RIM_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
-    face.frustumCulled = refl.frustumCulled = rim.frustumCulled = false;
-    face.renderOrder = 4; rim.renderOrder = 3; refl.renderOrder = 2;
-    face.add(rim);
+    face.frustumCulled = refl.frustumCulled = false;
+    face.renderOrder = 4; refl.renderOrder = 2;
     refl.visible = skill;                                                        // 床への映り込みは、前に出るスキルの画面だけ（軽くするため）
     STREAM.add(face); STREAM.add(refl);
     FD.push({
@@ -1629,7 +1585,7 @@
   // Features 以降の、背景のパネルの並び方（スクロールで次の並び方へ、1枚ずつ時間差でなめらかに移る）
   //   0＝漂う  1＝円柱（Features。スクロールで奥へ・手前へ）  2＝1枚の大きなカード（Programs）
   //   3＝縦と横に動いて交差（Growth）  4＝3枚が拡大して写真の枠になる（Vision）  5＝球体に戻る（最後）
-  var MS = 0, cylSpin = 0, cardSpin = 0, sphSpin = 0;
+  var MS = 0, cylSpin = 0, cardSpin = 0, cardTilt = 0, sphSpin = 0;
   var cylC = new V3(), cardC = new V3(), crossC = new V3(), sphC = new V3(), sphR = 1, cylZ = -9;
   var lyP = [new V3(), new V3()], lyQ = [new THREE.Quaternion(), new THREE.Quaternion()], lyS = [0, 0], lyV = [1, 1], lyE = new THREE.Euler();
   var lyN = new V3(), lyR = new V3(), lyU = new V3(), lyB = new THREE.Matrix4();
@@ -1646,9 +1602,9 @@
       P.set(cylC.x + Math.sin(th) * CYL_R, cylC.y + (row - 1.5) * CYL_H, cylC.z + Math.cos(th) * CYL_R);
       lyE.set(0, th, 0); Q.setFromEuler(lyE); lyS[slot] = CYL_S;
     } else if (mode === 2) {                // 1枚の大きなカード：4列×8段にすき間なく整列し、カードごとゆっくり回る
-      var cw = CARD_S * PLANE_W * 0.86, ch = CARD_S * 0.74;
-      lyR.set(((i % 4) - 1.5) * cw, (3.5 - Math.floor(i / 4)) * ch, 0);
-      lyE.set(0, cardSpin, 0); Q.setFromEuler(lyE);
+      var cw = CARD_S * PLANE_W * 0.86, ch = CARD_S * 0.74, col = i % 4, rw = Math.floor(i / 4);
+      lyR.set((col - 1.5) * cw, (3.5 - rw) * ch, Math.sin(tt * 1.1 + col * 0.9 + rw * 0.6) * CARD_S * 0.35);   // 面がゆっくり波打つ
+      lyE.set(cardTilt, cardSpin, Math.sin(cardTilt * 0.7) * 0.18, 'YXZ'); Q.setFromEuler(lyE);              // 縦の軸と横の軸の両方で回る
       P.copy(lyR).applyQuaternion(Q).add(cardC); lyS[slot] = CARD_S;
     } else if (mode === 3 || (mode === 4 && VIS_IDX.indexOf(i) < 0)) {   // 縦と横に動いて交差する（Vision では奥へ下がって暗く）
       var hor = i % 2 === 0, uu = (tt * (0.022 + rand(i + 2010) * 0.03) + rand(i + 2020)) % 1, lane = rand(i + 2030) - 0.5;
@@ -1702,7 +1658,7 @@
     var frontSize = pxToWorld(bodyPx) * scl / (PLANE_W * SKILL_BODY[0]) * 0.92;         // 右を向くと手前の左端が少し大きく見える分を引く
     var best = 0;
     MS = RM || CAPTURE ? (M || 0) : MS + ((M || 0) - MS) * (1 - Math.exp(-dt * 1.6));          // 並び方は、ゆっくり移る
-    if (!RM) { cylSpin += dt * 0.12; cardSpin += dt * 0.25; sphSpin += dt * 0.15; }             // 円柱 1周約50秒／カード 約25秒／球体 約40秒
+    if (!RM) { cylSpin += dt * 0.12; cardSpin += dt * 0.25; cardTilt += dt * 0.16; sphSpin += dt * 0.15; }   // 円柱 1周約50秒／カード 縦の軸 約25秒・横の軸 約40秒／球体 約40秒
     var cx0 = camera.position.x + (mobile ? 0 : 2.4);
     CYL_R = mobile ? 2.4 : 4.6; CYL_H = mobile ? 0.95 : 1.35; CYL_S = mobile ? 0.9 : 1.3;
     CARD_S = mobile ? 0.5 : 0.8; CROSS_W = mobile ? 10 : 24; CROSS_H = mobile ? 9 : 8; CROSS_S = mobile ? 0.8 : 1.1;
@@ -1711,7 +1667,7 @@
     cardC.set(cx0, mobile ? 1.0 : 0.2, -9);
     crossC.set(camera.position.x, 0.2, -10);
     if (MS > 3.01) {                         // Vision の写真の位置と大きさ（写真の真後ろ、奥行き 0 の面）
-      document.querySelectorAll('.vcard img').forEach(function (img, n) {
+      document.querySelectorAll('.vcard__frame').forEach(function (img, n) {   // 写真は浮かんで動くので、動かない枠の位置に合わせる
         var r = img.getBoundingClientRect();
         if (!r.width) { visRect[n] = null; return; }
         var w0 = toWorld(r.left + r.width / 2, r.top + r.height / 2);
@@ -2045,7 +2001,9 @@
         var vp = EQS.viewport ? EQS.viewport() : window.innerWidth, mid = scrollS + vp * 0.5, Mv = 0;
         ['features', 'programs', 'growth', 'vision', 'contact'].forEach(function (id) {
           var el = document.getElementById(id); if (!el) return;
-          var s0 = EQS.docSpan(el)[0]; Mv += smooth(s0 - vp * 0.5, s0 + vp * 0.1, mid);
+          var s0 = EQS.docSpan(el)[0];
+          // 最後の球体は、最後のセクションが画面の中央に来てから（Vision の写真を見ている間に崩れないように）
+          Mv += id === 'contact' ? smooth(s0 + vp * 0.05, s0 + vp * 0.45, mid) : smooth(s0 - vp * 0.5, s0 + vp * 0.1, mid);
         });
         showStream(mode === 'cta' ? 0.75 : 0.6, 8 + clamp(fProg * 1.2, 0, 4), dt, mobile, Mv, fProg);   // 文字の後ろに暗い層を敷いたので、パネルを少し明るく
       } else STREAM.visible = false;
