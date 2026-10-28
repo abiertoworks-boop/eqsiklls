@@ -16,6 +16,26 @@
   document.querySelectorAll('.js-course').forEach(function (a) { a.href = LINKS.course; });
   document.querySelectorAll('.js-contact').forEach(function (a) { a.href = LINKS.contact; });
 
+  /* お問い合わせフォーム：ボタンで開き、送信すると info@brifu.co.jp 宛のメールを、入力内容を入れた状態でメールソフトに渡す
+     （このサイトは GitHub Pages で、サーバーが無いので、メールソフト経由で送る。ダイアログが使えない時は、ボタンのリンクで直接メールを開く） */
+  var cform = document.getElementById('contactForm');
+  if (cform && typeof cform.showModal === 'function') {
+    var cbox = cform.querySelector('form'), cerr = cform.querySelector('.cform__error');
+    document.querySelectorAll('.js-contact').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); cerr.hidden = true; cform.showModal(); var f = cbox.querySelector('input'); if (f) f.focus(); });
+    });
+    cform.querySelector('.cform__close').addEventListener('click', function () { cform.close(); });
+    cform.addEventListener('click', function (e) { if (e.target === cform) cform.close(); });   // 外側を押しても閉じる
+    cbox.addEventListener('submit', function (e) {
+      e.preventDefault();
+      if (!cbox.checkValidity()) { cerr.hidden = false; var bad = cbox.querySelector(':invalid'); if (bad) bad.focus(); return; }
+      var v = function (n) { return (cbox.elements[n].value || '').trim(); };
+      var subject = '【EQ Skills】' + v('topic') + '（' + v('name') + ' 様）';
+      var body = ['お名前：' + v('name'), '会社名・団体名：' + (v('org') || '—'), 'メールアドレス：' + v('email'), 'ご相談の種類：' + v('topic'), '', 'お問い合わせ内容：', v('message'), '', '— EQ Skills サイトのお問い合わせフォームより'].join('\n');
+      window.location.href = LINKS.contact + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+    });
+  }
+
   var doc = document.documentElement;
   var CAPTURE = doc.classList.contains('is-capture');
   var RM = window.matchMedia('(prefers-reduced-motion: reduce)');

@@ -874,3 +874,39 @@ html.theme-light .hline circle.is-on{fill:#1d55e0}
 /* 「EQ Skillsの講座・体験会を見る」ボタン：ドロップシャドウ（下の光の影・文字の影）を付けない */
 .btn.js-course:not(.btn--sm),.btn.js-course:not(.btn--sm):hover,[data-orb="hero"] .btn.js-course:not(.btn--ghost){box-shadow:0 0 0 1px rgba(255,255,255,.4) inset;text-shadow:none}
 .program__more{margin-top:22px}
+
+/* =========================================================
+   お問い合わせフォーム（ダイアログ）
+   ========================================================= */
+.cform{margin:auto;padding:0;border:0;background:transparent;max-width:min(620px,calc(100vw - 32px));width:100%;max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;color:var(--on-dark)}   /* 画面の中央に。高さが足りない時は中でスクロール */
+.cform::backdrop{background:rgba(2,4,10,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.cform[open]{animation:cformIn .45s var(--ease-out)}
+@keyframes cformIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+.cform__box{position:relative;display:grid;gap:16px;padding:clamp(28px,4vw,44px);border-radius:14px;background:rgba(8,14,26,.96);
+  box-shadow:0 0 0 1px rgba(95,228,255,.32),0 0 60px rgba(40,160,255,.18)}
+.cform__close{position:absolute;right:14px;top:12px;width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:var(--on-dark);font-size:24px;line-height:1;cursor:pointer}
+.cform__close:hover{background:rgba(255,255,255,.08)}
+.cform__en{font-family:var(--font-en);font-size:12px;letter-spacing:.28em;color:#5fe4ff;margin:0}
+.cform__title{font-family:var(--font-head);font-size:clamp(22px,2.2vw,30px);margin:0;color:#fff}
+.cform__lead{color:var(--on-dark-2);font-size:14px;margin:0 0 4px}
+.cform__field{display:grid;gap:6px;font-size:14px}
+.cform__field b{margin-left:8px;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:500;color:#06101f;background:#5fe4ff}
+.cform__field input,.cform__field select,.cform__field textarea{width:100%;box-sizing:border-box;padding:11px 13px;border-radius:8px;font:inherit;font-size:16px;color:#fff;
+  background:rgba(255,255,255,.05);border:1px solid rgba(160,200,255,.3);outline:none;transition:border-color .2s,box-shadow .2s}
+.cform__field select option{color:#06101f}
+.cform__field textarea{resize:vertical;min-height:120px}
+.cform__field input:focus,.cform__field select:focus,.cform__field textarea:focus{border-color:#5fe4ff;box-shadow:0 0 0 3px rgba(95,228,255,.22)}
+.cform__error{margin:0;color:#ffb4a8;font-size:13px}
+.cform__send{justify-self:start;margin-top:6px}
+.cform__note{margin:0;font-size:12px;line-height:1.8;color:var(--on-dark-2)}
+.cform__note a{color:#5fe4ff}
+
+/* Features の 1〜5 の数字：輪郭が光り、1つずつ順に、ふわっと明るくなる */
+.feature__num{animation:numGlow 5s ease-in-out infinite;animation-delay:calc(var(--nd,0) * 1s)}
+.feature:nth-child(1) .feature__num{--nd:0}.feature:nth-child(2) .feature__num{--nd:1}.feature:nth-child(3) .feature__num{--nd:2}
+.feature:nth-child(4) .feature__num{--nd:3}.feature:nth-child(5) .feature__num{--nd:4}
+@keyframes numGlow{
+  0%,100%{-webkit-text-stroke-color:rgba(170,205,255,.5);text-shadow:0 0 0 rgba(95,228,255,0);color:transparent}
+  18%{-webkit-text-stroke-color:rgba(200,248,255,1);text-shadow:0 0 12px rgba(95,228,255,.95),0 0 32px rgba(95,228,255,.6);color:rgba(95,228,255,.16)}
+  40%{-webkit-text-stroke-color:rgba(150,220,255,.75);text-shadow:0 0 8px rgba(95,228,255,.4);color:transparent}}
+@media (prefers-reduced-motion:reduce){.feature__num{animation:none;-webkit-text-stroke-color:rgba(190,235,255,.85);text-shadow:0 0 10px rgba(95,228,255,.6)}}

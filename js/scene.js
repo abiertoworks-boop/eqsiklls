@@ -1279,15 +1279,17 @@
       tw: (0.5 + rand(q + 190) * 1.3) * (rand(q + 195) > 0.5 ? 1 : -1), bob: rand(q + 200) * 6.28,
       ssize: 0.55 + rand(q + 210) * 0.7, stagger: rand(q + 220),
       fly: new V3((rand(q + 230) - 0.5) * 3.2, (rand(q + 240) - 0.5) * 2.2, 0),
+      burst: 0.9 + rand(q + 260) * 2.4, lift: (rand(q + 270) - 0.5) * 1.4, tumble: (rand(q + 280) - 0.5) * 4,   // ばらける距離・上下の広がり・回る角度
       follow: 3.4 + rand(q + 250) * 3.2,                                                   // 目標に追いつく速さ（ばらばらにして、流れをつくる）
       cp: new V3(), cq: new THREE.Quaternion(), cs: 0
     });
   }
-  var pM = new THREE.Matrix4(), pQ = new THREE.Quaternion(), pQ2 = new THREE.Quaternion(), pS = new V3(), pP = new V3(), pP2 = new V3();
+  var pM = new THREE.Matrix4(), pQ = new THREE.Quaternion(), pQ2 = new THREE.Quaternion(), pQ3 = new THREE.Quaternion(), pS = new V3(), pP = new V3(), pP2 = new V3();
   var pN = new V3(), pUp = new V3(), pRight = new V3(), pBasis = new THREE.Matrix4(), pZ = new V3(0, 0, 1);
   var panelT0 = -1, FLOOR_Y = -3.7, panelFresh = true;
   // assemble：0＝ばらばら、1＝球体／rush：0〜1 で手前へ飛び込む
-  function updatePanels(center, R, assemble, rush, op, spinQ, dt) {
+  // scatter：0〜1（トップ→定義の移動の途中で、球体からばらける具合）
+  function updatePanels(center, R, assemble, rush, op, spinQ, dt, scatter) {
     panels.visible = shadows.visible = op > 0.003;
     panelGlow.visible = panels.visible;
     if (!panels.visible) { panelFresh = true; return; }
@@ -1305,6 +1307,11 @@
       pUp.crossVectors(pN, pRight);
       pBasis.makeBasis(pRight, pUp, pN); pQ.setFromRotationMatrix(pBasis);
       pQ.multiply(pQ2.setFromAxisAngle(pZ, d.roll));
+      if (scatter > 0.001) {                 // 球体の中心から外へ、1枚ずつ違う距離までばらけて、くるりと向きを変える
+        pP.copy(pN).multiplyScalar(R * (d.depth + scatter * d.burst)).add(center);
+        pP.y += scatter * R * d.lift;
+        pQ.slerp(pQ3.setFromAxisAngle(d.ax, d.tumble).multiply(pQ), scatter);
+      }
       // 舞っている時の位置と向き
       var tt = RM ? 0 : time;
       pP2.set(d.sx * spread * CHX2, (d.sy + (CHX2 < 1 ? 3.2 : 0)) * spread + Math.sin(tt * 0.7 + d.bob) * 0.35 + 0.5, d.sz * spread - 1 - (CHX2 < 1 ? 4 : 0));
@@ -1324,7 +1331,7 @@
         }
       }
       // 目標の位置・向き・大きさへ、パネルごとに少しずつ違う速さで追いつく（急に動かず、群れのように流れる）
-      var fw = panelFresh || RM || CAPTURE ? 1 : 1 - Math.exp(-dt * (rush > 0 ? 14 : d.follow));
+      var fw = panelFresh || RM || CAPTURE ? 1 : 1 - Math.exp(-dt * (rush > 0 ? 5 : d.follow));   // 飛び込む時も、急に跳ばずに追いかける
       d.cp.lerp(pP2, fw); d.cq.slerp(pQ2, fw); d.cs += (size - d.cs) * fw;
       d.mesh.position.copy(d.cp); d.mesh.quaternion.copy(d.cq); d.mesh.scale.setScalar(d.cs * 0.85);
       // 床の影
@@ -1763,7 +1770,7 @@
     [0.36, 0.15, -4, 0.32, 0.75], [0.40, 0.26, 1.8, 0.38, 0.9]
   ];
   var ORDER = ['hero', 'about', 'for', 'emotion', 'why'];
-  var KF = [], kfKey = '';
+  var KF = [], kfKey = '', DEF_A = 0, DEF_B = 0;
   function buildKeyframes() {
     var mobile = W < 900, vh = EQS.viewport ? EQS.viewport() : window.innerHeight;
     var span = EQS.docSpan || function (el) { var r = el.getBoundingClientRect(); return [r.top + window.scrollY, r.height]; };
@@ -1787,6 +1794,7 @@
       if (b < a + vh * 0.3) { if (EQS.hmode) { a = top - vh * 0.04; b = top + vh * 0.14; } else { var mid = (a + b) / 2; a = mid - vh * 0.18; b = mid + vh * 0.12; } }   // 狭いセクションでも、その位置で少しとどまる
       return [a, b];
     });
+    DEF_A = spans[0][1]; DEF_B = spans[1][0];   // トップを離れてから、定義に着くまで
     KF = [];
     ORDER.forEach(function (name, i) {
       KF.push({ y: spans[i][0], p: P[name] });
@@ -1825,7 +1833,7 @@
   var SPRING = { x: 1, y: 1, z: 1, r: 1 };
   var first = true;
   var camPos = new V3(), lPos = new V3(), prevOrb = new V3(), orbVel = 0, wasVisible = false;
-  var bgX = 0, bgZ = 1, bgXs = '', bgZs = '', asmS = 0;
+  var bgX = 0, bgZ = 1, bgXs = '', bgZs = '', asmS = 0, piS = 0;
 
   function spinOrbit(rig, dt, boost) {
     var mb = rig.base.material, mu = rig.burst.material;
@@ -1900,7 +1908,8 @@
     var pulse = burst > 0 ? Math.sin(Math.PI * burst) : 0;
 
     var mode = m.active;
-    var pi = m.pi;
+    piS = RM || CAPTURE ? m.pi : piS + (m.pi - piS) * (1 - Math.exp(-dt * 2.5));   // ホイールの1段ごとに急に変わらないよう、約0.4秒かけて追いかける
+    var pi = piS;
     var inPowers = mode === 'powers';
     var journey = inPowers && (RM ? pi > 0.02 : pi >= 0.28) && m.k < 7.6;
     var white = 0, zBase = 0, rush = 0;
@@ -1961,7 +1970,9 @@
       var asmT = heroAsm * (1 - 0.2 * (RM ? 0 : travel));
       asmS = RM || CAPTURE ? asmT : asmS + (asmT - asmS) * (1 - Math.exp(-dt * 2.2));   // 集まり具合も、ゆっくり追いかける
       CHX2 = mobile ? 0.45 : 1;
-      updatePanels(orb.position, rWorld, asmS, rush, m.after ? 0 : 1, spin.quaternion, dt);
+      // トップ→定義：移動の真ん中でいちばんばらけ、定義の位置（右端）に着く時には元の球体に戻る
+      var defT = DEF_B > DEF_A ? clamp((scrollS - DEF_A) / (DEF_B - DEF_A), 0, 1) : 0;
+      updatePanels(orb.position, rWorld, asmS, rush, m.after ? 0 : 1, spin.quaternion, dt, RM ? 0 : Math.pow(Math.sin(Math.PI * defT), 1.2));
 
       // CTA の白い光の球体
       lights[1].visible = lights[2].visible = false;
