@@ -27,7 +27,7 @@
   document.querySelectorAll('.steps').forEach(function (ol) {
     ol.querySelectorAll('li').forEach(function (li, i) { li.style.setProperty('--n', i); });
   });
-  var revealTargets = document.querySelectorAll('.reveal, .feature, .growth__col, .vision__cards');
+  var revealTargets = document.querySelectorAll('.reveal, .feature, .growth__col');
   if (CAPTURE || !('IntersectionObserver' in window)) {
     revealTargets.forEach(function (el) { el.classList.add('is-in'); });
   } else {

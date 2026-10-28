@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@500;600&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=13">
+<link rel="stylesheet" href="css/style.css?v=15">
 <script>document.documentElement.classList.add('js');if(/[?&]capture=1/.test(location.search))document.documentElement.classList.add('is-capture');</script>
 </head>
 <body id="top">
@@ -403,11 +403,52 @@
         <p class="body reveal">そして、その人が持っている可能性を、<br class="pc">人生・仕事・組織の中で活かしていく。</p>
         <p class="statement statement--center reveal">私たちが目指すのは、<br>お互いを大切にする社会。</p>
       </div>
-      <ul class="vision__cards" aria-label="EQで変わるもの">
-        <li class="vcard"><figure><div class="vcard__frame"><img src="images/vision/life.webp" alt="夕日の中で両手を広げる人" width="1200" height="675" decoding="async"></div><figcaption><span class="vcard__en">LIFE</span>人生</figcaption></figure></li>
-        <li class="vcard"><figure><div class="vcard__frame"><img src="images/vision/organization.webp" alt="資料を囲んで話し合うチーム" width="1200" height="800" decoding="async"></div><figcaption><span class="vcard__en">ORGANIZATION</span>組織</figcaption></figure></li>
-        <li class="vcard"><figure><div class="vcard__frame"><img src="images/vision/society.webp" alt="夜の街と重なる、考える人の横顔" width="1200" height="675" decoding="async"></div><figcaption><span class="vcard__en">SOCIETY</span>社会</figcaption></figure></li>
-      </ul>
+      <!-- 人生・組織・社会：トライコム・バッジ（光の点）から、ホログラムが縦に投影・展開される（js/holo.js） -->
+      <div class="holo" aria-label="EQで変わるもの">
+        <span class="holo__badge" aria-hidden="true"><i></i></span>
+        <span class="holo__beam" aria-hidden="true"></span>
+        <ul class="holo__list">
+        <li class="holo__item" style="--i:0">
+          <figure class="holo__panel">
+            <div class="holo__screen">
+              <span class="holo__branch" aria-hidden="true"></span>
+              <svg class="holo__frame" viewBox="0 0 320 180" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M18 1H118M132 1H302L319 18V162L302 179H202M188 179H18L1 162V18L18 1"/><path class="holo__corner" pathLength="1" d="M8 34V8H34M286 8H312V34M312 146V172H286M34 172H8V146"/></svg>
+              <span class="holo__code holo__code--top" data-text="M.I.A.D00" aria-hidden="true"></span>
+              <span class="holo__code holo__code--bot" data-text="SYS.069 // 01" aria-hidden="true"></span>
+              <span class="holo__grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <div class="holo__img"><img src="images/vision/life.webp" alt="夕日の中で両手を広げる人" width="1200" height="675" decoding="async"></div>
+            </div>
+            <figcaption class="holo__cap"><span class="holo__en">LIFE</span>人生</figcaption>
+          </figure>
+        </li>
+        <li class="holo__item" style="--i:1">
+          <figure class="holo__panel">
+            <div class="holo__screen">
+              <span class="holo__branch" aria-hidden="true"></span>
+              <svg class="holo__frame" viewBox="0 0 320 180" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M18 1H118M132 1H302L319 18V162L302 179H202M188 179H18L1 162V18L18 1"/><path class="holo__corner" pathLength="1" d="M8 34V8H34M286 8H312V34M312 146V172H286M34 172H8V146"/></svg>
+              <span class="holo__code holo__code--top" data-text="ORG.N47" aria-hidden="true"></span>
+              <span class="holo__code holo__code--bot" data-text="SYS.069 // 02" aria-hidden="true"></span>
+              <span class="holo__grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <div class="holo__img"><img src="images/vision/organization.webp" alt="資料を囲んで話し合うチーム" width="1200" height="800" decoding="async"></div>
+            </div>
+            <figcaption class="holo__cap"><span class="holo__en">ORGANIZATION</span>組織</figcaption>
+          </figure>
+        </li>
+        <li class="holo__item" style="--i:2">
+          <figure class="holo__panel">
+            <div class="holo__screen">
+              <span class="holo__branch" aria-hidden="true"></span>
+              <svg class="holo__frame" viewBox="0 0 320 180" preserveAspectRatio="none" aria-hidden="true"><path pathLength="1" d="M18 1H118M132 1H302L319 18V162L302 179H202M188 179H18L1 162V18L18 1"/><path class="holo__corner" pathLength="1" d="M8 34V8H34M286 8H312V34M312 146V172H286M34 172H8V146"/></svg>
+              <span class="holo__code holo__code--top" data-text="SOC.X12" aria-hidden="true"></span>
+              <span class="holo__code holo__code--bot" data-text="SYS.069 // 03" aria-hidden="true"></span>
+              <span class="holo__grid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+              <div class="holo__img"><img src="images/vision/society.webp" alt="夜の街と重なる、考える人の横顔" width="1200" height="675" decoding="async"></div>
+            </div>
+            <figcaption class="holo__cap"><span class="holo__en">SOCIETY</span>社会</figcaption>
+          </figure>
+        </li>
+        </ul>
+      </div>
     </div>
   </section>
 
@@ -441,7 +482,8 @@
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" defer></script>
-<script src="js/main.js?v=13" defer></script>
-<script src="js/scene.js?v=13" defer></script>
+<script src="js/main.js?v=15" defer></script>
+<script src="js/scene.js?v=15" defer></script>
+<script src="js/holo.js?v=15" defer></script>
 </body>
 </html>

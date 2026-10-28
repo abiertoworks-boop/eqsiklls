@@ -775,43 +775,101 @@ html.theme-light .hline circle.is-on{fill:#1d55e0}
 @keyframes flowV{from{bottom:0}to{bottom:100%}}
 @media (prefers-reduced-motion:reduce){.axis b::after,.axis i::after{animation:none;opacity:0}}
 
-/* Vision：3枚のパネル（人生・組織・社会）。3Dのパネルが後ろで拡大して、写真の枠になる */
-.vision__cards{display:grid;gap:44px;margin:56px auto 0;max-width:560px;list-style:none;padding:0}
-/* 縦に、左右へばらばらにずらして並べる */
-.vcard:nth-child(1){width:84%;margin-left:0}
-.vcard:nth-child(2){width:76%;margin-left:24%}
-.vcard:nth-child(3){width:80%;margin-left:8%}
-/* 写真がパネルから浮き上がり、空中でゆっくり漂う（下に光の影、パネルから写真へ光が昇る） */
-.vcard__frame{position:relative}
-.vcard__frame::before{content:"";position:absolute;left:8%;right:8%;bottom:-6px;height:70%;z-index:-1;pointer-events:none;
-  background:linear-gradient(0deg,rgba(90,220,255,.32),rgba(90,220,255,0));filter:blur(6px);opacity:.8;animation:vbeam 6s ease-in-out infinite}
-.vcard__frame::after{content:"";position:absolute;left:10%;right:10%;bottom:-14px;height:18px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(ellipse at center,rgba(80,210,255,.55),rgba(80,210,255,0) 70%);animation:vshadow 6s ease-in-out infinite}
-.vcard img{animation:vfloat 6s ease-in-out infinite;will-change:transform}
-.vcard:nth-child(2) img,.vcard:nth-child(2) .vcard__frame::before,.vcard:nth-child(2) .vcard__frame::after{animation-delay:-2s}
-.vcard:nth-child(3) img,.vcard:nth-child(3) .vcard__frame::before,.vcard:nth-child(3) .vcard__frame::after{animation-delay:-4s}
-@keyframes vfloat{0%,100%{transform:translate3d(0,-10px,0) scale(.95)}50%{transform:translate3d(0,-22px,0) scale(.95)}}
-@keyframes vshadow{0%,100%{opacity:.9;transform:scaleX(1)}50%{opacity:.5;transform:scaleX(.82)}}
-@keyframes vbeam{0%,100%{opacity:.75}50%{opacity:.4}}
-@media (prefers-reduced-motion:reduce){.vcard img,.vcard__frame::before,.vcard__frame::after{animation:none}.vcard img{transform:translate3d(0,-12px,0) scale(.95)}}
-.vcard figure{margin:0;position:relative}
-.vcard img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:3px;
-  clip-path:polygon(0 0,calc(100% - 22px) 0,100% 22px,100% 100%,22px 100%,0 calc(100% - 22px));
-  box-shadow:0 0 30px rgba(60,200,255,.25)}
-.vcard figcaption{margin-top:26px;font-family:var(--font-head);font-size:clamp(20px,1.9vw,28px);color:#fff;letter-spacing:.12em;display:flex;align-items:baseline;gap:14px}
-.vcard__en{font-family:var(--font-en);font-size:12px;letter-spacing:.24em;color:var(--light-blue)}
-.js .vcard{opacity:0;transform:perspective(900px) translateZ(-260px) scale(.7);filter:blur(6px);transition:opacity 1s var(--ease-out),transform 1.4s var(--ease-out),filter 1s var(--ease-out)}
-.js .vcard:nth-child(2){transition-delay:.15s}.js .vcard:nth-child(3){transition-delay:.3s}
-.js .vision__cards.is-in .vcard,.is-capture .vcard{opacity:1;transform:none;filter:none}
-@media (prefers-reduced-motion:reduce){.js .vcard{opacity:1;transform:none;filter:none;transition:none}}
+/* =========================================================
+   Vision：人生・組織・社会のホログラム（トライコム・バッジから空間に投影・展開される）
+     ① バッジ（光の点）が灯る → ② 光の縦のラインがシュッと伸びる → ③ 枝分かれして3つのSF枠が描かれる
+     → ④ 枠の上下の文字がタイピングされ、ドットが灯る → ⑤ 画像が明滅しながら縦に順に浮かび上がる → ⑥ ゆっくり上下に浮遊
+     再生は js/holo.js が .is-on を付け外しする（画面の75%に届いたら再生、画面の外に出たら初期状態に戻す）
+   ========================================================= */
+.holo{--cy:#5fe4ff;--cy-hi:#d6f8ff;--beam-x:20px;position:relative;margin:64px auto 0;max-width:560px;padding:40px 0 40px 52px;
+  background:radial-gradient(ellipse 80% 70% at 45% 50%,rgba(0,0,0,.92),rgba(0,0,0,.7) 55%,rgba(0,0,0,0) 78%)}   /* 漆黒の空間 */
+.holo__list{list-style:none;margin:0;padding:0;display:grid;gap:58px}
+.holo__item{position:relative;width:min(calc(100% - var(--off,0px) - 14px),var(--w,420px));margin-left:var(--off,0px)}   /* はみ出さないよう、ずらした分だけ細く */
+.holo__item:nth-child(1){--off:0px;--w:400px;--fd:4.4s}
+.holo__item:nth-child(2){--off:56px;--w:360px;--fd:5.3s}
+.holo__item:nth-child(3){--off:20px;--w:390px;--fd:4.8s}
+
+/* ① バッジ（起点の光の点）と ② 縦のライン：下のバッジから上へ伸びる */
+.holo__badge{position:absolute;left:calc(var(--beam-x) - 7px);bottom:10px;width:14px;height:14px;border-radius:50%;
+  background:radial-gradient(circle,#fff 0,var(--cy-hi) 30%,var(--cy) 60%,rgba(95,228,255,0) 72%);box-shadow:0 0 18px 4px rgba(95,228,255,.75)}
+.holo__badge i{position:absolute;inset:-10px;border-radius:50%;border:1px solid rgba(95,228,255,.7)}
+.holo__beam{position:absolute;left:calc(var(--beam-x) - 1px);top:24px;bottom:17px;width:2px;transform-origin:50% 100%;
+  background:linear-gradient(0deg,var(--cy-hi),var(--cy) 30%,rgba(95,228,255,.25));box-shadow:0 0 10px 1px rgba(95,228,255,.8)}
+/* ③ 縦のラインから各パネルへの枝 */
+.holo__branch{position:absolute;top:50%;right:100%;width:calc(var(--pad-l,52px) - var(--beam-x) + var(--off));height:1px;transform-origin:0 50%;
+  background:linear-gradient(90deg,var(--cy),rgba(95,228,255,.4));box-shadow:0 0 8px rgba(95,228,255,.8)}
+.holo__branch::before{content:"";position:absolute;left:-3px;top:-3px;width:7px;height:7px;border-radius:50%;background:var(--cy-hi);box-shadow:0 0 10px var(--cy)}
+
+/* パネル：角にスリットの入ったSF枠、上下の文字、グリッドのドット、画像 */
+.holo__panel{position:relative;margin:0}
+.holo__screen{position:relative}
+.holo__frame{position:absolute;inset:-12px;width:calc(100% + 24px);height:calc(100% + 24px);overflow:visible;pointer-events:none;
+  filter:drop-shadow(0 0 6px rgba(95,228,255,.85))}
+.holo__frame path{fill:none;stroke:var(--cy);stroke-width:1.6;vector-effect:non-scaling-stroke;stroke-dasharray:1;stroke-dashoffset:0}
+.holo__frame .holo__corner{stroke:var(--cy-hi);stroke-width:2.6}
+.holo__img{position:relative;aspect-ratio:16/9;overflow:hidden;opacity:.85;
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+.holo__img img{display:block;width:100%;height:100%;object-fit:cover}
+.holo__img::after{content:"";position:absolute;inset:0;pointer-events:none;mix-blend-mode:screen;   /* ホログラムの走査線と、青い光 */
+  background:repeating-linear-gradient(0deg,rgba(95,228,255,.14) 0 1px,rgba(0,0,0,0) 1px 3px),linear-gradient(180deg,rgba(95,228,255,.22),rgba(0,40,80,.1))}
+.holo__code{position:absolute;font-family:var(--font-en);font-size:11px;letter-spacing:.22em;color:var(--cy);text-shadow:0 0 8px rgba(95,228,255,.9);white-space:nowrap;min-height:1em}
+.holo__code--top{left:4px;top:-34px}
+.holo__code--bot{right:4px;bottom:-34px}
+.holo__grid{position:absolute;right:6px;top:-30px;display:flex;gap:6px}
+.holo__grid i{width:4px;height:4px;background:var(--cy);box-shadow:0 0 6px var(--cy)}
+.holo__grid i:nth-child(odd){opacity:.45}
+.holo__cap{margin-top:44px;font-family:var(--font-head);font-size:clamp(20px,1.9vw,28px);color:#fff;letter-spacing:.12em;display:flex;align-items:baseline;gap:14px}
+.holo__en{font-family:var(--font-en);font-size:12px;letter-spacing:.24em;color:var(--light-blue)}
+
+/* 再生前（初期状態）：何も見えない。JSが動かない時は、最初から完成した状態で見える */
+.js .holo:not(.is-on) .holo__badge,.js .holo:not(.is-on) .holo__beam,.js .holo:not(.is-on) .holo__branch,
+.js .holo:not(.is-on) .holo__grid i,.js .holo:not(.is-on) .holo__img,.js .holo:not(.is-on) .holo__cap{opacity:0}
+.js .holo:not(.is-on) .holo__frame path{stroke-dashoffset:1}
+
+/* 再生：時間差で順に */
+.holo.is-on .holo__badge{animation:holoDot .45s cubic-bezier(.2,.9,.3,1.4) both}
+.holo.is-on .holo__badge i{animation:holoRing 2.4s ease-out .5s infinite both}
+.holo.is-on .holo__beam{animation:holoBeam .5s cubic-bezier(.7,0,.2,1) .3s both}
+.holo.is-on .holo__branch{animation:holoBranch .24s cubic-bezier(.6,0,.2,1) calc(.78s + var(--i) * .12s) both}
+.holo.is-on .holo__frame path{animation:holoDraw .42s cubic-bezier(.6,0,.2,1) calc(.88s + var(--i) * .12s) both}
+.holo.is-on .holo__frame .holo__corner{animation-duration:.3s;animation-delay:calc(1.08s + var(--i) * .12s)}
+.holo.is-on .holo__grid i{animation:holoBlink .16s steps(2,end) calc(1.25s + var(--i) * .15s + var(--n) * .06s) both}
+.holo__grid i:nth-child(1){--n:0}.holo__grid i:nth-child(2){--n:1}.holo__grid i:nth-child(3){--n:2}.holo__grid i:nth-child(4){--n:3}.holo__grid i:nth-child(5){--n:4}.holo__grid i:nth-child(6){--n:5}
+.holo.is-on .holo__img{animation:holoGlitch .95s linear calc(1.5s + var(--i) * .32s) both}
+.holo.is-on .holo__img img{animation:holoShift .95s steps(1,end) calc(1.5s + var(--i) * .32s) both}
+.holo.is-on .holo__cap{animation:holoCap .6s ease-out calc(1.9s + var(--i) * .32s) both}
+/* ⑥ 投影が終わったら、3つがそれぞれの周期でゆっくり上下に浮遊する */
+.holo.is-on .holo__panel{animation:holoFloat var(--fd) cubic-bezier(.45,0,.55,1) calc(3.1s + var(--i) * .5s) infinite alternate both}
+
+@keyframes holoDot{0%{opacity:0;transform:scale(0)}55%{opacity:1;transform:scale(1.7)}100%{opacity:1;transform:scale(1)}}
+@keyframes holoRing{0%{opacity:.8;transform:scale(.6)}100%{opacity:0;transform:scale(2.2)}}
+@keyframes holoBeam{0%{opacity:1;transform:scaleY(0)}100%{opacity:1;transform:scaleY(1)}}
+@keyframes holoBranch{0%{opacity:1;transform:scaleX(0)}100%{opacity:1;transform:scaleX(1)}}
+@keyframes holoDraw{0%{stroke-dashoffset:1}100%{stroke-dashoffset:0}}
+@keyframes holoBlink{0%{opacity:0}100%{opacity:1}}
+@keyframes holoGlitch{   /* 一瞬細かく明滅しながら、半透明（0.85）で浮かび上がる */
+  0%{opacity:0;filter:brightness(2.2) saturate(.2)}6%{opacity:.7}10%{opacity:.05}16%{opacity:.55}20%{opacity:.1}
+  28%{opacity:.8;filter:brightness(1.6) saturate(.5)}33%{opacity:.25}42%{opacity:.85}48%{opacity:.45}
+  60%{opacity:.85;filter:brightness(1.15)}100%{opacity:.85;filter:none}}
+@keyframes holoShift{0%{transform:translateX(-6px) skewX(-8deg)}10%{transform:translateX(5px)}20%{transform:translateX(-3px) scaleY(1.03)}
+  33%{transform:translateX(2px)}48%{transform:none}100%{transform:none}}
+@keyframes holoCap{0%{opacity:0;transform:translateY(6px);filter:blur(4px)}100%{opacity:1;transform:none;filter:none}}
+@keyframes holoFloat{0%{transform:translateY(0)}100%{transform:translateY(-7px)}}
+
+/* 動きを減らす設定・撮影用の表示では、完成した状態をそのまま見せる */
+@media (prefers-reduced-motion:reduce){.holo.is-on *{animation:none!important}.holo.is-on .holo__frame path{stroke-dashoffset:0}}
+.is-capture .holo *{animation:none!important}
+
+/* 横スクロール（PC）：文章の右に、縦に3つ */
 .hscroll .sec--vision{width:auto}
-.hscroll .sec--vision>.container{display:flex;align-items:center;gap:0 6vw;width:auto;padding-right:8vw}
+.hscroll .sec--vision>.container{display:flex;align-items:center;gap:0 5vw;width:auto;padding-right:8vw}
 .hscroll .sec--vision .col-center{flex:0 0 auto;width:min(760px,52vw)}
-.hscroll .vision__cards{flex:0 0 auto;display:flex;flex-direction:column;gap:2.4vh;margin:0;max-width:none;width:34vw;padding-top:4vh}
-.hscroll .vcard:nth-child(1){width:min(19vw,30vh);margin-left:1vw}
-.hscroll .vcard:nth-child(2){width:min(17vw,27vh);margin-left:15vw}
-.hscroll .vcard:nth-child(3){width:min(20vw,31vh);margin-left:5vw}
-.hscroll .vcard figcaption{margin-top:20px;font-size:clamp(17px,1.4vw,22px)}
+.hscroll .holo{--pad-l:64px;--beam-x:26px;flex:0 0 auto;width:38vw;max-width:none;margin:0;padding:calc(var(--header-h,68px) * .5 + 3vh) 0 3vh 64px}
+.hscroll .holo__list{gap:max(40px,5vh)}
+.hscroll .holo__item:nth-child(1){--off:0px;--w:min(16vw,21vh)}
+.hscroll .holo__item:nth-child(2){--off:12vw;--w:min(14.5vw,19.5vh)}
+.hscroll .holo__item:nth-child(3){--off:4vw;--w:min(16.5vw,22vh)}
+.hscroll .holo__cap{margin-top:36px;font-size:clamp(15px,1.2vw,20px)}
 
 /* 「EQ Skillsの講座・体験会を見る」ボタン：ドロップシャドウ（下の光の影・文字の影）を付けない */
 .btn.js-course:not(.btn--sm),.btn.js-course:not(.btn--sm):hover,[data-orb="hero"] .btn.js-course:not(.btn--ghost){box-shadow:0 0 0 1px rgba(255,255,255,.4) inset;text-shadow:none}
